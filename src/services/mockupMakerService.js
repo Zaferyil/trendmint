@@ -22,8 +22,7 @@ export const mockupMakerService = {
       localStorage.setItem('trendmint_pending_transfer', JSON.stringify(transfer));
 
       // MockupMaker'ı yeni sekmede aç
-      // Not: URL'yi kendi MockupMaker URL'iniz ile değiştirin
-      const mockupMakerUrl = 'http://localhost:3000'; // Geliştirme ortamı
+      const mockupMakerUrl = 'https://mockuppmaker.netlify.app/';
       window.open(mockupMakerUrl, '_blank');
 
       return {
