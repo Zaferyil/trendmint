@@ -43,7 +43,7 @@ export default function TrendCard({ trend, source }) {
           )}
           {trend.metrics.trendAge !== null && trend.metrics.trendAge !== undefined && (
             <span className="text-xs text-gray-500">
-              • {trend.metrics.trendAge} günlük ilan
+              • {trend.metrics.trendAge}d old
             </span>
           )}
         </div>
@@ -75,12 +75,12 @@ export default function TrendCard({ trend, source }) {
                   listing from one that merely had years to accumulate. */}
               {trend.metrics.viewsPerDay !== undefined && (
                 <span className="px-2 py-1 bg-green-100 rounded text-green-700 font-semibold">
-                  ⚡ {trend.metrics.viewsPerDay} görüntülenme/gün
+                  ⚡ {trend.metrics.viewsPerDay} views/day
                 </span>
               )}
               {trend.metrics.favoriteRate && (
                 <span className="px-2 py-1 bg-purple-50 rounded text-purple-700 font-semibold">
-                  📈 {trend.metrics.favoriteRate} kaydetme oranı
+                  📈 {trend.metrics.favoriteRate} save rate
                 </span>
               )}
             </>

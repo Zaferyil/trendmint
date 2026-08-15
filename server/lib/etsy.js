@@ -397,7 +397,9 @@ export async function getTrendingListings({
       // failure — say so, so the UI does not report it as a broken API.
       note:
         listings.length === 0 && droppedTooOld > 0
-          ? `Son ${ageLimit} günde eşiği geçen ilan bulunamadı (${droppedTooOld} ilan bu aralıktan eski). Zaman aralığını genişletin.`
+          ? `No listing cleared the threshold in the last ${ageLimit} days — ` +
+            `${droppedTooOld} listing${droppedTooOld === 1 ? ' was' : 's were'} older than the window. ` +
+            `Try a wider time window.`
           : undefined,
       // Lets the UI (and a human reading /api/etsy-trends) see where rows went.
       meta: {
