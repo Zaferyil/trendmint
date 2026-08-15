@@ -47,21 +47,36 @@ const DIGITAL_MARKERS = [
  * count are shop-level fields that search results omit entirely, so gating on
  * them rejects everything; they are used for scoring only when present.
  */
+// minViews/minFavorites guard the rate: a listing two days old with 6 views and
+// 2 favourites reads as 3 views/day at a 33% save rate, which would outrank
+// everything real. Small numbers make loud rates, so a floor of absolute
+// evidence is required before a rate is believed.
 const TREND_TIERS = {
-  STEADY: { name: '🟢 Steady', viewsPerDay: 0.5, favoritesPerDay: 0.03, favoriteRate: 0.01 },
-  STRONG: { name: '🟡 Strong Trend', viewsPerDay: 3, favoritesPerDay: 0.15, favoriteRate: 0.02 },
-  HOT: { name: '🔴 Hot Trend', viewsPerDay: 10, favoritesPerDay: 0.5, favoriteRate: 0.03 },
+  STEADY: { name: '🟢 Steady', viewsPerDay: 0.5, favoritesPerDay: 0.03, favoriteRate: 0.01, minViews: 25, minFavorites: 1 },
+  STRONG: { name: '🟡 Strong Trend', viewsPerDay: 3, favoritesPerDay: 0.15, favoriteRate: 0.02, minViews: 60, minFavorites: 3 },
+  HOT: { name: '🔴 Hot Trend', viewsPerDay: 10, favoritesPerDay: 0.5, favoriteRate: 0.03, minViews: 120, minFavorites: 6 },
 };
 
 // Used when the strict pass finds nothing — better a weak list, labelled as
 // weak, than a silent fall back to demo data.
-const FALLBACK_TIER = { name: '⚪ Early Signal', viewsPerDay: 0, favoritesPerDay: 0, favoriteRate: 0 };
+const FALLBACK_TIER = {
+  name: '⚪ Early Signal',
+  viewsPerDay: 0,
+  favoritesPerDay: 0,
+  favoriteRate: 0,
+  minViews: 0,
+  minFavorites: 1, // one save is the least evidence worth showing
+};
 
 // How far back a listing may have been created and still count as a trend.
 // Velocity alone does not bound this: a listing from 2018 with steady traffic
 // scores respectably, but nobody should design for it — that market is settled.
-// A year is deliberately generous; the UI can ask for a tighter window.
-const DEFAULT_MAX_AGE_DAYS = 365;
+const DEFAULT_MAX_AGE_DAYS = 7;
+
+// Beyond this, "new" stops meaning anything. Inside a short window the label is
+// scaled to the window instead, so it still separates the front half from the
+// back half rather than marking every row RISING.
+const MAX_RISING_THRESHOLD_DAYS = 30;
 
 function isDigitalListing(listing) {
   const haystack = [listing.title, ...(listing.tags || [])].join(' ').toLowerCase();
@@ -126,6 +141,8 @@ function readMetrics(listing) {
 
 function matchesTier(metrics, tier) {
   return (
+    metrics.views >= tier.minViews &&
+    metrics.favorites >= tier.minFavorites &&
     metrics.viewsPerDay >= tier.viewsPerDay &&
     metrics.favoritesPerDay >= tier.favoritesPerDay &&
     metrics.favoriteRate >= tier.favoriteRate
@@ -139,7 +156,7 @@ function matchesTier(metrics, tier) {
  * in for sales, which the public API does not expose), quality 10%. Missing
  * fields score zero rather than disqualifying the listing.
  */
-function scoreListing(metrics) {
+function scoreListing(metrics, risingThresholdDays) {
   const { ageInDays, favoriteRate, favoritesPerDay, reviews, rating, viewsPerDay } = metrics;
 
   const velocity = Math.min(viewsPerDay * 2, 100) * 0.6 + Math.min(favoritesPerDay * 40, 100) * 0.4;
@@ -150,9 +167,11 @@ function scoreListing(metrics) {
   const base = velocity * 0.4 + engagement * 0.3 + conversion * 0.2 + quality * 0.1;
 
   // A new listing has had less time to accumulate anything, so equal velocity
-  // from a standing start counts for more.
+  // from a standing start counts for more. Scaled to the window, or every row
+  // in a 7-day search would take the same multiplier and it would rank nothing.
   const age = ageInDays;
-  const recencyBoost = age === null ? 1.0 : age < 30 ? 1.5 : age < 90 ? 1.2 : 1.0;
+  const recencyBoost =
+    age === null ? 1.0 : age < risingThresholdDays ? 1.5 : age < risingThresholdDays * 3 ? 1.2 : 1.0;
   return base * recencyBoost;
 }
 
@@ -160,7 +179,7 @@ function scoreListing(metrics) {
  * Returns tier info for a listing, or null when it clears no tier.
  * `tiers` lets the caller retry with the looser fallback tier.
  */
-function classifyTrend(listing, tiers = TREND_TIERS) {
+function classifyTrend(listing, tiers = TREND_TIERS, risingThresholdDays = MAX_RISING_THRESHOLD_DAYS) {
   const metrics = readMetrics(listing);
 
   let tier = null;
@@ -172,12 +191,12 @@ function classifyTrend(listing, tiers = TREND_TIERS) {
   }
   if (!tier) return null;
 
-  const isRising = metrics.ageInDays !== null && metrics.ageInDays < 30;
+  const isRising = metrics.ageInDays !== null && metrics.ageInDays < risingThresholdDays;
 
   return {
     metrics,
     tierName: tier.name,
-    score: scoreListing(metrics),
+    score: scoreListing(metrics, risingThresholdDays),
     isRising,
     // No label when the age is unknown — better a missing badge than a
     // confident wrong one.
@@ -201,10 +220,10 @@ function buildApiKeyHeader(apiKey, sharedSecret) {
   return sharedSecret ? `${apiKey}:${sharedSecret}` : apiKey;
 }
 
-async function fetchOneKeyword({ keyword, limit, credential }) {
+async function fetchOneKeyword({ keyword, sortOn, limit, credential }) {
   const params = new URLSearchParams({
     keywords: keyword,
-    sort_on: 'score',
+    sort_on: sortOn,
     sort_order: 'desc',
     limit: String(Math.min(limit, 100)),
   });
@@ -215,25 +234,36 @@ async function fetchOneKeyword({ keyword, limit, credential }) {
 
   if (!response.ok) {
     const detail = await response.text();
-    return { keyword, error: { status: response.status, detail: detail.slice(0, 300) } };
+    return { keyword, sortOn, error: { status: response.status, detail: detail.slice(0, 300) } };
   }
 
   const data = await response.json();
-  return { keyword, results: data.results || [] };
+  return { keyword, sortOn, results: data.results || [] };
 }
 
 /**
- * Runs every keyword for the category and merges the results, de-duplicated by
- * listing id. One garment appearing in two searches must not occupy two slots.
+ * Runs every keyword against two orderings and merges the results,
+ * de-duplicated by listing id.
+ *
+ * `score` alone cannot answer a short window: Etsy ranks established sellers
+ * highly, so that pool is dominated by listings years old and a 7-day filter
+ * finds nothing to keep. `created` supplies the freshly listed candidates the
+ * window is actually about. Neither ordering alone is enough — score finds
+ * what sells, created finds what is new.
  */
 async function fetchListings({ category, limit, credential }) {
   const keywords = TRENDING_CATEGORIES[category] || [category];
   // Over-fetch: the digital filter and the trend filter both discard rows.
   const perKeyword = Math.min(Math.ceil(limit * 3), 100);
 
-  const responses = await Promise.all(
-    keywords.map((keyword) => fetchOneKeyword({ keyword, limit: perKeyword, credential }))
-  );
+  const requests = [];
+  for (const keyword of keywords) {
+    for (const sortOn of ['score', 'created']) {
+      requests.push(fetchOneKeyword({ keyword, sortOn, limit: perKeyword, credential }));
+    }
+  }
+
+  const responses = await Promise.all(requests);
 
   const failures = responses.filter((r) => r.error);
   // Only a total failure is fatal; a partial one still yields a usable list.
@@ -251,7 +281,9 @@ async function fetchListings({ category, limit, credential }) {
   return {
     results: [...byId.values()],
     keywordsUsed: keywords,
-    failedKeywords: failures.map((f) => f.keyword),
+    // Named by ordering too: losing `created` quietly would empty a short
+    // window while `score` kept the request looking healthy.
+    failedQueries: failures.map((f) => `${f.keyword} (${f.sortOn})`),
   };
 }
 
@@ -301,7 +333,7 @@ export async function getTrendingListings({
   const wanted = Math.min(Number(limit) || 12, 100);
   // 0 or a non-number means "no ceiling", which the UI offers explicitly.
   const ageLimit = Number(maxAgeDays) > 0 ? Number(maxAgeDays) : Infinity;
-  const { results, error, keywordsUsed, failedKeywords } = await fetchListings({
+  const { results, error, keywordsUsed, failedQueries } = await fetchListings({
     category,
     limit: wanted,
     credential,
@@ -329,15 +361,22 @@ export async function getTrendingListings({
   // tier so the UI shows the best available rather than nothing at all. The
   // age ceiling is NOT relaxed here — loosening it would hand back exactly the
   // stale listings the ceiling exists to exclude.
+  // "New" is relative to the window: half of it, capped, so a 7-day search
+  // still separates its first days from its last instead of marking all RISING.
+  const risingDays = Math.min(MAX_RISING_THRESHOLD_DAYS, Math.max(ageLimit / 2, 1));
+
   let mode = 'trending';
   let classified = withinWindow
-    .map((listing) => ({ listing, trend: classifyTrend(listing) }))
+    .map((listing) => ({ listing, trend: classifyTrend(listing, TREND_TIERS, risingDays) }))
     .filter((row) => row.trend !== null);
 
   if (classified.length === 0) {
     mode = 'early-signal';
     classified = withinWindow
-      .map((listing) => ({ listing, trend: classifyTrend(listing, { STEADY: FALLBACK_TIER }) }))
+      .map((listing) => ({
+        listing,
+        trend: classifyTrend(listing, { STEADY: FALLBACK_TIER }, risingDays),
+      }))
       .filter((row) => row.trend !== null);
   }
 
@@ -364,7 +403,7 @@ export async function getTrendingListings({
       meta: {
         mode,
         keywords: keywordsUsed,
-        failedKeywords,
+        failedQueries,
         maxAgeDays: ageLimit === Infinity ? null : ageLimit,
         fetched: results.length,
         afterDigitalFilter: garments.length,

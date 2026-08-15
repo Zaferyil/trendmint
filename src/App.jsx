@@ -93,11 +93,13 @@ const MOCK_AMAZON_TRENDS = [
 
 // How far back the analysis looks. A listing older than the window is not a
 // trend to design for, however steady its traffic — that market is settled.
+// The wider options exist because a 7-day window can legitimately come back
+// empty, and a quiet week should be answerable without editing code.
 const TIME_WINDOWS = [
+  { days: 7, label: 'Son 7 gün' },
+  { days: 14, label: 'Son 14 gün' },
+  { days: 30, label: 'Son 30 gün' },
   { days: 90, label: 'Son 3 ay' },
-  { days: 180, label: 'Son 6 ay' },
-  { days: 365, label: 'Son 1 yıl' },
-  { days: 0, label: 'Tümü' },
 ];
 
 function App() {
@@ -114,7 +116,7 @@ function App() {
   const [isLoadingTrends, setIsLoadingTrends] = useState(false);
   const [lastAnalyzedAt, setLastAnalyzedAt] = useState(null);
   const [isLiveData, setIsLiveData] = useState(false);
-  const [maxAgeDays, setMaxAgeDays] = useState(365);
+  const [maxAgeDays, setMaxAgeDays] = useState(7);
   const [analysisNote, setAnalysisNote] = useState(null);
   const [etsyTrends, setEtsyTrends] = useState(MOCK_ETSY_TRENDS);
   const [amazonTrends, setAmazonTrends] = useState(MOCK_AMAZON_TRENDS);
