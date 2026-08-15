@@ -3,26 +3,31 @@ const MOCKUP_MAKER_API_URL = import.meta.env.VITE_MOCKUP_MAKER_API_URL || 'http:
 export const mockupMakerService = {
   async sendDesignToMockupMaker(design) {
     try {
-      const response = await fetch(`${MOCKUP_MAKER_API_URL}/generate-mockup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...design,
-          timestamp: new Date().toISOString(),
+      // TrendMint'ten MockupMaker'a localStorage ile transfer
+      const transfer = {
+        design: {
+          id: `design_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+          name: design.designName,
+          imageUrl: design.designImage,
+          imagePrompt: design.designName,
+          trendName: 'Custom Design',
+          category: design.category || 'apparel',
+          colors: design.colors || [],
           source: 'trendmint',
-        }),
-      });
+          createdAt: Date.now()
+        }
+      };
 
-      if (!response.ok) {
-        throw new Error(`MockupMaker API error: ${response.statusText}`);
-      }
+      // localStorage'a tasarımı kaydet
+      localStorage.setItem('trendmint_pending_transfer', JSON.stringify(transfer));
 
-      const data = await response.json();
+      // MockupMaker'ı yeni sekmede aç
+      const mockupMakerUrl = 'https://mockuppmaker.netlify.app/';
+      window.open(mockupMakerUrl, '_blank');
+
       return {
         success: true,
-        mockup: data,
+        mockup: null,
       };
     } catch (error) {
       console.error('Error sending design to MockupMaker:', error);
