@@ -57,6 +57,12 @@ const TREND_TIERS = {
 // weak, than a silent fall back to demo data.
 const FALLBACK_TIER = { name: '⚪ Early Signal', viewsPerDay: 0, favoritesPerDay: 0, favoriteRate: 0 };
 
+// How far back a listing may have been created and still count as a trend.
+// Velocity alone does not bound this: a listing from 2018 with steady traffic
+// scores respectably, but nobody should design for it — that market is settled.
+// A year is deliberately generous; the UI can ask for a tighter window.
+const DEFAULT_MAX_AGE_DAYS = 365;
+
 function isDigitalListing(listing) {
   const haystack = [listing.title, ...(listing.tags || [])].join(' ').toLowerCase();
   return DIGITAL_MARKERS.some((marker) => haystack.includes(marker));
@@ -279,7 +285,13 @@ function toCard(listing, trend) {
  * Fetches trending Etsy listings server-side, where the API key stays secret
  * and there is no CORS preflight to fail.
  */
-export async function getTrendingListings({ category = 'apparel', limit = 12, apiKey, sharedSecret }) {
+export async function getTrendingListings({
+  category = 'apparel',
+  limit = 12,
+  maxAgeDays = DEFAULT_MAX_AGE_DAYS,
+  apiKey,
+  sharedSecret,
+}) {
   const credential = buildApiKeyHeader(apiKey, sharedSecret);
 
   if (!credential) {
@@ -287,6 +299,8 @@ export async function getTrendingListings({ category = 'apparel', limit = 12, ap
   }
 
   const wanted = Math.min(Number(limit) || 12, 100);
+  // 0 or a non-number means "no ceiling", which the UI offers explicitly.
+  const ageLimit = Number(maxAgeDays) > 0 ? Number(maxAgeDays) : Infinity;
   const { results, error, keywordsUsed, failedKeywords } = await fetchListings({
     category,
     limit: wanted,
@@ -302,16 +316,27 @@ export async function getTrendingListings({ category = 'apparel', limit = 12, ap
 
   const garments = results.filter((listing) => !isDigitalListing(listing));
 
-  // Strict pass first; if the category is thin today, retry with the fallback
-  // tier so the UI shows the best available rather than nothing at all.
+  // Age ceiling, applied before any tier check. A listing with no timestamp is
+  // kept — its age cannot be disproved, and dropping it would silently discard
+  // real data whenever Etsy omits the field.
+  const withinWindow = garments.filter((listing) => {
+    const age = getAgeInDays(listing);
+    return age === null || age <= ageLimit;
+  });
+  const droppedTooOld = garments.length - withinWindow.length;
+
+  // Strict pass first; if the window is thin today, retry with the fallback
+  // tier so the UI shows the best available rather than nothing at all. The
+  // age ceiling is NOT relaxed here — loosening it would hand back exactly the
+  // stale listings the ceiling exists to exclude.
   let mode = 'trending';
-  let classified = garments
+  let classified = withinWindow
     .map((listing) => ({ listing, trend: classifyTrend(listing) }))
     .filter((row) => row.trend !== null);
 
   if (classified.length === 0) {
     mode = 'early-signal';
-    classified = garments
+    classified = withinWindow
       .map((listing) => ({ listing, trend: classifyTrend(listing, { STEADY: FALLBACK_TIER }) }))
       .filter((row) => row.trend !== null);
   }
@@ -329,13 +354,21 @@ export async function getTrendingListings({ category = 'apparel', limit = 12, ap
     body: {
       listings,
       success: true,
+      // An empty list because the window was tight is a real answer, not a
+      // failure — say so, so the UI does not report it as a broken API.
+      note:
+        listings.length === 0 && droppedTooOld > 0
+          ? `Son ${ageLimit} günde eşiği geçen ilan bulunamadı (${droppedTooOld} ilan bu aralıktan eski). Zaman aralığını genişletin.`
+          : undefined,
       // Lets the UI (and a human reading /api/etsy-trends) see where rows went.
       meta: {
         mode,
         keywords: keywordsUsed,
         failedKeywords,
+        maxAgeDays: ageLimit === Infinity ? null : ageLimit,
         fetched: results.length,
         afterDigitalFilter: garments.length,
+        droppedTooOld,
         afterTrendFilter: classified.length,
         analyzedAt: new Date().toISOString(),
       },

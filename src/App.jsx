@@ -91,6 +91,15 @@ const MOCK_AMAZON_TRENDS = [
   },
 ];
 
+// How far back the analysis looks. A listing older than the window is not a
+// trend to design for, however steady its traffic — that market is settled.
+const TIME_WINDOWS = [
+  { days: 90, label: 'Son 3 ay' },
+  { days: 180, label: 'Son 6 ay' },
+  { days: 365, label: 'Son 1 yıl' },
+  { days: 0, label: 'Tümü' },
+];
+
 function App() {
   const [activeTab, setActiveTab] = useState('etsy');
   const [selectedTrend, setSelectedTrend] = useState(null);
@@ -105,6 +114,8 @@ function App() {
   const [isLoadingTrends, setIsLoadingTrends] = useState(false);
   const [lastAnalyzedAt, setLastAnalyzedAt] = useState(null);
   const [isLiveData, setIsLiveData] = useState(false);
+  const [maxAgeDays, setMaxAgeDays] = useState(365);
+  const [analysisNote, setAnalysisNote] = useState(null);
   const [etsyTrends, setEtsyTrends] = useState(MOCK_ETSY_TRENDS);
   const [amazonTrends, setAmazonTrends] = useState(MOCK_AMAZON_TRENDS);
 
@@ -113,12 +124,13 @@ function App() {
   const loadTrends = useCallback(async (tabType) => {
     setIsLoadingTrends(true);
     setError(null);
+    setAnalysisNote(null);
 
     try {
       if (tabType === 'etsy') {
         // One pass over every wearable textile: a design idea travels across
         // tee, sweatshirt and hoodie, so splitting the search split the trend.
-        const result = await etsyService.getTrendingListings('apparel', 12);
+        const result = await etsyService.getTrendingListings('apparel', 12, maxAgeDays);
         if (result.success && result.listings.length > 0) {
           const formattedTrends = result.listings.map((listing) => ({
             id: listing.id,
@@ -134,10 +146,19 @@ function App() {
           setEtsyTrends(formattedTrends);
           setIsLiveData(true);
           setLastAnalyzedAt(new Date());
+        } else if (result.success) {
+          // The API answered, the window was simply empty. Showing demo data
+          // here would dress up a real answer as fake trends.
+          setEtsyTrends([]);
+          setIsLiveData(true);
+          setLastAnalyzedAt(new Date());
+          setAnalysisNote(
+            result.note || 'Bu zaman aralığında eşiği geçen ilan bulunamadı.'
+          );
         } else {
           setIsLiveData(false);
           setEtsyTrends(MOCK_ETSY_TRENDS);
-          setError(`Etsy: ${result.error || 'no live trends returned'} — showing demo data.`);
+          setError(`Etsy: ${result.error} — demo veri gösteriliyor.`);
         }
       } else if (tabType === 'amazon') {
         const result = await amazonService.getBestSellersByCategory('apparel', 12);
@@ -162,7 +183,7 @@ function App() {
     } finally {
       setIsLoadingTrends(false);
     }
-  }, []);
+  }, [maxAgeDays]);
 
   useEffect(() => {
     loadTrends(activeTab);
@@ -363,6 +384,25 @@ function App() {
                   {isLoadingTrends ? '⏳ Analiz ediliyor...' : '🔄 Trend Analizi Yap'}
                 </button>
 
+                {activeTab === 'etsy' && (
+                  <div className="flex items-center gap-1">
+                    {TIME_WINDOWS.map((window) => (
+                      <button
+                        key={window.days}
+                        onClick={() => setMaxAgeDays(window.days)}
+                        disabled={isLoadingTrends}
+                        className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all disabled:opacity-50 ${
+                          maxAgeDays === window.days
+                            ? 'bg-gray-800 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {window.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {activeTab === 'etsy' && lastAnalyzedAt && (
                   <span className="text-xs text-gray-500">
                     Son analiz: {lastAnalyzedAt.toLocaleTimeString('tr-TR')}
@@ -373,7 +413,16 @@ function App() {
 
               {currentTrends.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-500 text-lg">No trends available</p>
+                  {/* An empty window is a finding, not an error — it says the
+                      market is quiet, which is worth knowing before designing. */}
+                  <p className="text-gray-600 text-lg mb-2">
+                    {analysisNote || 'Trend bulunamadı'}
+                  </p>
+                  {analysisNote && (
+                    <p className="text-gray-400 text-sm">
+                      Yukarıdan daha geniş bir zaman aralığı seçebilirsiniz.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
