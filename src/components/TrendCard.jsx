@@ -51,6 +51,19 @@ export default function TrendCard({ trend, source }) {
         )}
       </div>
 
+      {/* Etsy's API terms require linking back to the original listing. */}
+      {trend.url && (
+        <a
+          href={trend.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(event) => event.stopPropagation()}
+          className="inline-block mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
+        >
+          View on {source === 'etsy' ? 'Etsy' : 'Amazon'} ↗
+        </a>
+      )}
+
       {trend.tags && (
         <div className="mt-3 flex flex-wrap gap-1">
           {trend.tags.map((tag, idx) => (
