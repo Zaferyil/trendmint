@@ -101,6 +101,7 @@ function App() {
           setEtsyTrends(formattedTrends);
         } else {
           setEtsyTrends(MOCK_ETSY_TRENDS);
+          setError(`Etsy: ${result.error || 'no live trends returned'} — showing demo data.`);
         }
       } else if (tabType === 'amazon') {
         const result = await amazonService.getBestSellersByCategory('apparel', 12);
