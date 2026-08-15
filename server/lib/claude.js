@@ -18,7 +18,15 @@ async function callClaude({ apiKey, model, maxTokens, prompt }) {
 
   if (!response.ok) {
     const detail = await response.text();
-    const error = new Error(`Claude API error (${response.status})`);
+    // Surface Anthropic's own explanation ("invalid x-api-key", "credit balance
+    // too low", ...) instead of a bare status code.
+    let reason = '';
+    try {
+      reason = JSON.parse(detail)?.error?.message || '';
+    } catch {
+      reason = '';
+    }
+    const error = new Error(`Claude API error (${response.status})${reason ? `: ${reason}` : ''}`);
     error.status = response.status;
     error.detail = detail.slice(0, 500);
     throw error;
