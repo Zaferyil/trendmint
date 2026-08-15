@@ -29,14 +29,6 @@ export const claudeService = {
     }
   },
 
-  async exportDesignAsPNG(design) {
-    return {
-      success: true,
-      imageUrl: '/placeholder-design.png',
-      prompt: design.imagePrompt,
-      message: 'Use the imagePrompt to generate image via DALL-E or Midjourney',
-    };
-  },
 };
 
 function generateDemoDesign(trendName) {
