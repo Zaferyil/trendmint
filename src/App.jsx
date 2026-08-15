@@ -27,7 +27,6 @@ const MOCK_ETSY_TRENDS = [
       trendTier: '🔴 Hot Trend',
       trendAge: 18,
       classification: '🔥 RISING',
-      growth: 45,
     },
     tags: ['cats', 'minimalist', 'cute'],
   },
@@ -44,7 +43,6 @@ const MOCK_ETSY_TRENDS = [
       trendTier: '🟡 Strong Trend',
       trendAge: 45,
       classification: '⭐ ESTABLISHED',
-      growth: 38,
     },
     tags: ['retro', '90s'],
   },
@@ -61,7 +59,6 @@ const MOCK_ETSY_TRENDS = [
       trendTier: '🔴 Hot Trend',
       trendAge: 12,
       classification: '🔥 RISING',
-      growth: 52,
     },
     tags: ['plants', 'botanical'],
   },
@@ -72,21 +69,21 @@ const MOCK_AMAZON_TRENDS = [
     id: 'amazon-1',
     name: 'Boho Plant Decor',
     description: 'Bohemian style plant decor',
-    metrics: { views: '24.1K', growth: 61 },
+    metrics: { views: '24.1K' },
     tags: ['boho', 'plants'],
   },
   {
     id: 'amazon-2',
     name: 'Vintage Map Prints',
     description: 'Vintage travel themed products',
-    metrics: { views: '18.7K', growth: 48 },
+    metrics: { views: '18.7K' },
     tags: ['vintage', 'maps'],
   },
   {
     id: 'amazon-3',
     name: 'Aesthetic Room Decor',
     description: 'Modern minimalist room decoration',
-    metrics: { views: '22.5K', growth: 55 },
+    metrics: { views: '22.5K' },
     tags: ['aesthetic', 'minimalist'],
   },
 ];
@@ -130,13 +127,9 @@ function App() {
             name: listing.name,
             description: listing.description,
             url: listing.url,
-            metrics: {
-              views: listing.metrics.views || 'N/A',
-              favorites: listing.metrics.favorites || 0,
-              reviews: listing.metrics.reviews || 0,
-              rating: listing.metrics.rating || 0,
-              growth: Math.floor(Math.random() * 60) + 20,
-            },
+            // Forwarded as-is. Nothing here is invented: every field is what
+            // the trend classifier derived from the Etsy response.
+            metrics: listing.metrics,
             tags: listing.tags,
           }));
           setEtsyTrends(formattedTrends);
@@ -153,7 +146,6 @@ function App() {
             description: `Rating: ${product.rating}`,
             metrics: {
               views: `${product.reviews || 0} reviews`,
-              growth: Math.floor(Math.random() * 60) + 20,
             },
             tags: product.tags || [],
           }));

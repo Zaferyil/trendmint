@@ -36,14 +36,9 @@ export default function TrendCard({ trend, source }) {
       {trend.metrics?.trendTier && (
         <div className="mb-2 flex items-center gap-2">
           <span className="text-xs font-semibold text-gray-700">{trend.metrics.trendTier}</span>
-          {trend.metrics.trendAge && (
+          {trend.metrics.trendAge !== null && trend.metrics.trendAge !== undefined && (
             <span className="text-xs text-gray-500">
-              • {trend.metrics.trendAge}d old
-            </span>
-          )}
-          {trend.metrics.favoriteRate && (
-            <span className="text-xs text-purple-600 font-semibold">
-              • {trend.metrics.favoriteRate} fav rate
+              • {trend.metrics.trendAge} günlük ilan
             </span>
           )}
         </div>
@@ -69,9 +64,11 @@ export default function TrendCard({ trend, source }) {
                   ❤️ {trend.metrics.favorites}
                 </span>
               )}
-              {trend.metrics.growth && (
+              {/* Favourite rate, not a growth figure: Etsy exposes no
+                  historical counts, so any "% growth" here would be invented. */}
+              {trend.metrics.favoriteRate && (
                 <span className="px-2 py-1 bg-green-100 rounded text-green-700 font-semibold">
-                  📈 {trend.metrics.growth}%
+                  📈 {trend.metrics.favoriteRate} kaydetme oranı
                 </span>
               )}
             </>
