@@ -53,7 +53,8 @@ export async function handleApiRequest({ method, path, query, body, env }) {
 
     case 'GET /etsy-trends':
       return getTrendingListings({
-        category: query.get('category') || 'tshirts',
+        // All wearable textiles in one pass by default.
+        category: query.get('category') || 'apparel',
         limit: query.get('limit') || 12,
         apiKey: etsyKey,
         sharedSecret: etsySecret,
@@ -63,7 +64,7 @@ export async function handleApiRequest({ method, path, query, body, env }) {
     // calibrated against real responses.
     case 'GET /etsy-debug':
       return debugTrendingListings({
-        category: query.get('category') || 'tshirts',
+        category: query.get('category') || 'apparel',
         apiKey: etsyKey,
         sharedSecret: etsySecret,
       });

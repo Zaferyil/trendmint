@@ -24,6 +24,7 @@ const MOCK_ETSY_TRENDS = [
       reviews: 24,
       rating: 4.8,
       favoriteRate: '6.80%',
+      viewsPerDay: 69.4,
       trendTier: '🔴 Hot Trend',
       trendAge: 18,
       classification: '🔥 RISING',
@@ -40,6 +41,7 @@ const MOCK_ETSY_TRENDS = [
       reviews: 12,
       rating: 4.6,
       favoriteRate: '3.90%',
+      viewsPerDay: 18.2,
       trendTier: '🟡 Strong Trend',
       trendAge: 45,
       classification: '⭐ ESTABLISHED',
@@ -56,6 +58,7 @@ const MOCK_ETSY_TRENDS = [
       reviews: 38,
       rating: 4.9,
       favoriteRate: '7.84%',
+      viewsPerDay: 127.5,
       trendTier: '🔴 Hot Trend',
       trendAge: 12,
       classification: '🔥 RISING',
@@ -88,14 +91,6 @@ const MOCK_AMAZON_TRENDS = [
   },
 ];
 
-// Physical garments only — the label drives the Etsy search, the garment name
-// goes into the design prompt so the artwork suits the product.
-const APPAREL_CATEGORIES = [
-  { id: 'tshirts', label: '👕 T-Shirts', garment: 't-shirt' },
-  { id: 'sweatshirts', label: '🧥 Sweatshirts', garment: 'sweatshirt' },
-  { id: 'hoodies', label: '🎽 Hoodies', garment: 'hoodie' },
-];
-
 function App() {
   const [activeTab, setActiveTab] = useState('etsy');
   const [selectedTrend, setSelectedTrend] = useState(null);
@@ -108,7 +103,8 @@ function App() {
   const [isExportingDesign, setIsExportingDesign] = useState(false);
   const [error, setError] = useState(null);
   const [isLoadingTrends, setIsLoadingTrends] = useState(false);
-  const [apparelCategory, setApparelCategory] = useState('tshirts');
+  const [lastAnalyzedAt, setLastAnalyzedAt] = useState(null);
+  const [isLiveData, setIsLiveData] = useState(false);
   const [etsyTrends, setEtsyTrends] = useState(MOCK_ETSY_TRENDS);
   const [amazonTrends, setAmazonTrends] = useState(MOCK_AMAZON_TRENDS);
 
@@ -120,25 +116,31 @@ function App() {
 
     try {
       if (tabType === 'etsy') {
-        const result = await etsyService.getTrendingListings(apparelCategory, 12);
+        // One pass over every wearable textile: a design idea travels across
+        // tee, sweatshirt and hoodie, so splitting the search split the trend.
+        const result = await etsyService.getTrendingListings('apparel', 12);
         if (result.success && result.listings.length > 0) {
           const formattedTrends = result.listings.map((listing) => ({
             id: listing.id,
             name: listing.name,
             description: listing.description,
             url: listing.url,
+            garment: listing.garment,
             // Forwarded as-is. Nothing here is invented: every field is what
             // the trend classifier derived from the Etsy response.
             metrics: listing.metrics,
             tags: listing.tags,
           }));
           setEtsyTrends(formattedTrends);
+          setIsLiveData(true);
+          setLastAnalyzedAt(new Date());
         } else {
+          setIsLiveData(false);
           setEtsyTrends(MOCK_ETSY_TRENDS);
           setError(`Etsy: ${result.error || 'no live trends returned'} — showing demo data.`);
         }
       } else if (tabType === 'amazon') {
-        const result = await amazonService.getBestSellersByCategory(apparelCategory, 12);
+        const result = await amazonService.getBestSellersByCategory('apparel', 12);
         if (result.success && result.products.length > 0) {
           const formattedTrends = result.products.map((product) => ({
             id: product.id,
@@ -160,7 +162,7 @@ function App() {
     } finally {
       setIsLoadingTrends(false);
     }
-  }, [apparelCategory]);
+  }, []);
 
   useEffect(() => {
     loadTrends(activeTab);
@@ -183,7 +185,9 @@ function App() {
     try {
       const result = await claudeService.generateDesignFromTrend(
         selectedTrend.name,
-        APPAREL_CATEGORIES.find((c) => c.id === apparelCategory)?.garment || 't-shirt',
+        // Read off the listing itself, so a hoodie trend produces hoodie
+        // artwork without the user having to pick a category first.
+        selectedTrend.garment || 't-shirt',
         'modern'
       );
 
@@ -348,20 +352,23 @@ function App() {
                 {isLoadingTrends && <span className="animate-spin text-2xl">⏳</span>}
               </div>
 
-              <div className="flex flex-wrap gap-2 mb-6">
-                {APPAREL_CATEGORIES.map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => setApparelCategory(category.id)}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                      apparelCategory === category.id
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {category.label}
-                  </button>
-                ))}
+              {/* Analysis runs on load and on demand — nothing refreshes on a
+                  timer, so the timestamp says exactly how old the list is. */}
+              <div className="flex flex-wrap items-center gap-3 mb-6">
+                <button
+                  onClick={() => loadTrends(activeTab)}
+                  disabled={isLoadingTrends}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all"
+                >
+                  {isLoadingTrends ? '⏳ Analiz ediliyor...' : '🔄 Trend Analizi Yap'}
+                </button>
+
+                {activeTab === 'etsy' && lastAnalyzedAt && (
+                  <span className="text-xs text-gray-500">
+                    Son analiz: {lastAnalyzedAt.toLocaleTimeString('tr-TR')}
+                    {isLiveData ? ' • canlı Etsy verisi' : ' • demo veri'}
+                  </span>
+                )}
               </div>
 
               {currentTrends.length === 0 ? (
