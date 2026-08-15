@@ -10,6 +10,7 @@ import ActionButtons from './components/ActionButtons';
 import { claudeService } from './services/claudeService';
 import { mockupMakerService } from './services/mockupMakerService';
 import { etsyService } from './services/etsyService';
+import { imageService } from './services/imageService';
 import { amazonService } from './services/amazonService';
 
 const MOCK_ETSY_TRENDS = [
@@ -68,6 +69,7 @@ function App() {
   const [selectedVariationId, setSelectedVariationId] = useState(null);
   const [isGeneratingDesign, setIsGeneratingDesign] = useState(false);
   const [isGeneratingVariations, setIsGeneratingVariations] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isExportingDesign, setIsExportingDesign] = useState(false);
   const [error, setError] = useState(null);
   const [isLoadingTrends, setIsLoadingTrends] = useState(false);
@@ -187,10 +189,33 @@ function App() {
     }
   };
 
+  const handleGenerateImage = async () => {
+    if (!design) return;
+
+    setIsGeneratingImage(true);
+    setError(null);
+
+    try {
+      const result = await imageService.generateImage(design);
+
+      if (result.success) {
+        setDesign((current) => ({ ...current, imageUrl: result.imageUrl }));
+      } else {
+        setError('Failed to generate image: ' + result.error);
+      }
+    } catch (err) {
+      setError('Error generating image: ' + err.message);
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
   const handleSelectVariation = (variation) => {
     setSelectedVariationId(variation.id);
     setDesign({
       ...design,
+      // The artwork belongs to the previous variation's prompt.
+      imageUrl: undefined,
       name: variation.name,
       description: variation.description,
       colors: variation.colors,
@@ -200,16 +225,27 @@ function App() {
   };
 
   const handleExportDesign = async (designToExport, format = 'png') => {
+    if (!designToExport) return;
+
+    if (!designToExport.imageUrl) {
+      setError('Generate the image first, then download it.');
+      return;
+    }
+
     setIsExportingDesign(true);
 
     try {
-      const result = await claudeService.exportDesignAsPNG(designToExport);
+      const response = await fetch(designToExport.imageUrl);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
 
-      if (result.success) {
-        alert(`✅ Design ready for export!\n\nImage Prompt:\n${result.prompt}\n\nUse this prompt with DALL-E, Midjourney, or your image generation tool.`);
-      } else {
-        setError('Failed to export design');
-      }
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = `${designToExport.name || 'trendmint-design'}.${format}`.replace(/\s+/g, '-').toLowerCase();
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
     } catch (err) {
       setError('Error exporting design: ' + err.message);
     } finally {
@@ -315,13 +351,16 @@ function App() {
             <DesignPreview
               design={design}
               isLoading={isGeneratingDesign}
+              isGeneratingImage={isGeneratingImage}
             />
 
             <ActionButtons
               selectedTrend={selectedTrend}
               onGenerateDesign={handleGenerateDesign}
+              onGenerateImage={handleGenerateImage}
               onSendToMockupMaker={handleSendToMockupMaker}
               isGeneratingDesign={isGeneratingDesign}
+              isGeneratingImage={isGeneratingImage}
               isDesignReady={!!design}
             />
 

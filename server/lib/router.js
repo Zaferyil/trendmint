@@ -1,5 +1,6 @@
 import { getTrendingListings, getShopListings } from './etsy.js';
 import { generateDesign, generateVariations } from './claude.js';
+import { generateImage } from './openai.js';
 
 /**
  * Reads a server-side secret, falling back to the legacy VITE_-prefixed name so
@@ -26,6 +27,7 @@ export async function handleApiRequest({ method, path, query, body, env }) {
   const route = `${method.toUpperCase()} ${path.replace(/\/+$/, '') || '/'}`;
   const etsyKey = secret(env, 'ETSY_API_KEY', 'VITE_ETSY_API_KEY');
   const claudeKey = secret(env, 'ANTHROPIC_API_KEY', 'VITE_CLAUDE_API_KEY');
+  const openaiKey = secret(env, 'OPENAI_API_KEY', 'VITE_OPENAI_API_KEY');
 
   switch (route) {
     case 'GET /health':
@@ -35,6 +37,7 @@ export async function handleApiRequest({ method, path, query, body, env }) {
           ok: true,
           etsyConfigured: Boolean(etsyKey),
           claudeConfigured: Boolean(claudeKey),
+          openaiConfigured: Boolean(openaiKey),
           // Which variable name each key came from — handy when a deploy still
           // carries the legacy VITE_ names.
           etsySource: env.ETSY_API_KEY ? 'ETSY_API_KEY' : env.VITE_ETSY_API_KEY ? 'VITE_ETSY_API_KEY' : null,
@@ -74,6 +77,15 @@ export async function handleApiRequest({ method, path, query, body, env }) {
         count: body?.count,
         apiKey: claudeKey,
         model: env.CLAUDE_MODEL,
+      });
+
+    case 'POST /generate-image':
+      return generateImage({
+        prompt: body?.prompt,
+        apiKey: openaiKey,
+        model: env.OPENAI_IMAGE_MODEL,
+        size: body?.size,
+        quality: body?.quality || env.OPENAI_IMAGE_QUALITY,
       });
 
     // Amazon has no public product API. Until a data provider is wired up the

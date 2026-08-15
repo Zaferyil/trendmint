@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function DesignPreview({ design, isLoading = false }) {
+export default function DesignPreview({ design, isLoading = false, isGeneratingImage = false }) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Design Preview</h3>
@@ -18,13 +18,28 @@ export default function DesignPreview({ design, isLoading = false }) {
                 alt={design.name}
                 className="max-w-xs max-h-80 object-contain"
               />
+            ) : isGeneratingImage ? (
+              <div className="text-center text-gray-500">
+                <p className="text-4xl mb-2 animate-spin">⏳</p>
+                <p>Generating artwork...</p>
+              </div>
             ) : (
               <div className="text-center text-gray-400">
                 <p className="text-4xl mb-2">🎨</p>
-                <p>Design image will appear here</p>
+                <p>Press "Generate Image" to create the artwork</p>
               </div>
             )}
           </div>
+
+          {design.imagePrompt && !design.imageUrl && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="font-semibold text-gray-800 mb-2">Image Prompt</h4>
+              <p className="text-xs text-gray-600 mb-2">
+                Feed this to any image generator, or press "Generate Image" above.
+              </p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">{design.imagePrompt}</p>
+            </div>
+          )}
 
           {design.description && (
             <div className="bg-gray-50 rounded-lg p-4">
