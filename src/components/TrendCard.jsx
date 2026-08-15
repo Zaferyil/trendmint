@@ -57,12 +57,14 @@ export default function TrendCard({ trend, source }) {
         <div className="flex gap-2">
           {trend.metrics && (
             <>
-              {trend.metrics.views && (
+              {/* Compared against undefined, not truthiness: a genuine zero is
+                  information, and hiding the badge reads as "no data". */}
+              {trend.metrics.views !== undefined && (
                 <span className="px-2 py-1 bg-gray-100 rounded text-gray-700">
                   👁️ {trend.metrics.views}
                 </span>
               )}
-              {trend.metrics.favorites && (
+              {trend.metrics.favorites !== undefined && (
                 <span className="px-2 py-1 bg-red-50 rounded text-red-600 font-semibold">
                   ❤️ {trend.metrics.favorites}
                 </span>
