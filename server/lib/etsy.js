@@ -7,11 +7,24 @@ const TRENDING_CATEGORIES = {
 };
 
 /**
+ * Etsy v3 wants the keystring and the shared secret in one header, separated by
+ * a colon. Passing the keystring alone answers "Shared secret is required in
+ * x-api-key header"; passing the secret alone answers "API key not found".
+ */
+function buildApiKeyHeader(apiKey, sharedSecret) {
+  if (!apiKey) return null;
+  if (apiKey.includes(':')) return apiKey; // already a combined credential
+  return sharedSecret ? `${apiKey}:${sharedSecret}` : apiKey;
+}
+
+/**
  * Fetches trending Etsy listings server-side, where the API key stays secret
  * and there is no CORS preflight to fail.
  */
-export async function getTrendingListings({ category = 'tshirts', limit = 12, apiKey }) {
-  if (!apiKey) {
+export async function getTrendingListings({ category = 'tshirts', limit = 12, apiKey, sharedSecret }) {
+  const credential = buildApiKeyHeader(apiKey, sharedSecret);
+
+  if (!credential) {
     return { status: 501, body: { listings: [], error: 'ETSY_API_KEY not configured on the server' } };
   }
 
@@ -23,7 +36,7 @@ export async function getTrendingListings({ category = 'tshirts', limit = 12, ap
   });
 
   const response = await fetch(`${ETSY_API_BASE}/listings/active?${params}`, {
-    headers: { 'x-api-key': apiKey },
+    headers: { 'x-api-key': credential },
   });
 
   if (!response.ok) {
@@ -51,13 +64,15 @@ export async function getTrendingListings({ category = 'tshirts', limit = 12, ap
   return { status: 200, body: { listings, success: true } };
 }
 
-export async function getShopListings({ shopId, apiKey }) {
-  if (!apiKey) {
+export async function getShopListings({ shopId, apiKey, sharedSecret }) {
+  const credential = buildApiKeyHeader(apiKey, sharedSecret);
+
+  if (!credential) {
     return { status: 501, body: { listings: [], error: 'ETSY_API_KEY not configured on the server' } };
   }
 
   const response = await fetch(`${ETSY_API_BASE}/shops/${encodeURIComponent(shopId)}/listings/active`, {
-    headers: { 'x-api-key': apiKey },
+    headers: { 'x-api-key': credential },
   });
 
   if (!response.ok) {

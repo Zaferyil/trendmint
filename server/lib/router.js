@@ -26,6 +26,7 @@ function secret(env, name, legacyName) {
 export async function handleApiRequest({ method, path, query, body, env }) {
   const route = `${method.toUpperCase()} ${path.replace(/\/+$/, '') || '/'}`;
   const etsyKey = secret(env, 'ETSY_API_KEY', 'VITE_ETSY_API_KEY');
+  const etsySecret = secret(env, 'ETSY_SHARED_SECRET', 'VITE_ETSY_SHARED_SECRET');
   const claudeKey = secret(env, 'ANTHROPIC_API_KEY', 'VITE_CLAUDE_API_KEY');
   const openaiKey = secret(env, 'OPENAI_API_KEY', 'VITE_OPENAI_API_KEY');
 
@@ -36,6 +37,7 @@ export async function handleApiRequest({ method, path, query, body, env }) {
         body: {
           ok: true,
           etsyConfigured: Boolean(etsyKey),
+          etsySharedSecretConfigured: Boolean(etsySecret),
           claudeConfigured: Boolean(claudeKey),
           openaiConfigured: Boolean(openaiKey),
           // Which variable name each key came from — handy when a deploy still
@@ -54,13 +56,14 @@ export async function handleApiRequest({ method, path, query, body, env }) {
         category: query.get('category') || 'tshirts',
         limit: query.get('limit') || 12,
         apiKey: etsyKey,
+        sharedSecret: etsySecret,
       });
 
     case 'GET /etsy-shop-listings':
       if (!query.get('shopId')) {
         return { status: 400, body: { error: 'shopId is required' } };
       }
-      return getShopListings({ shopId: query.get('shopId'), apiKey: etsyKey });
+      return getShopListings({ shopId: query.get('shopId'), apiKey: etsyKey, sharedSecret: etsySecret });
 
     case 'POST /generate-design':
       return generateDesign({
