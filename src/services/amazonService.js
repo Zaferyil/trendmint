@@ -1,61 +1,33 @@
-const AMAZON_BACKEND_BASE = import.meta.env.VITE_AMAZON_API_BASE || 'http://localhost:3001/api';
+import { apiClient } from './api';
 
 export const amazonService = {
   async getBestSellersByCategory(category = 'apparel', limit = 12) {
     try {
-      const response = await fetch(
-        `${AMAZON_BACKEND_BASE}/best-sellers?category=${encodeURIComponent(category)}&limit=${limit}`
-      );
-
-      if (!response.ok && response.status !== 404) {
-        throw new Error(`Amazon API error: ${response.statusText}`);
-      }
-
-      if (response.ok) {
-        const data = await response.json();
-        return {
-          products: data.products || [],
-          success: true,
-        };
-      }
-
+      const params = new URLSearchParams({ category, limit: String(limit) });
+      const data = await apiClient.get(`/best-sellers?${params}`);
       return {
-        products: [],
-        success: false,
-        message: 'Backend proxy not configured',
+        products: data.products || [],
+        success: Boolean(data.success) && (data.products || []).length > 0,
+        message: data.message,
       };
     } catch (error) {
       console.error('Error fetching Amazon best sellers:', error);
-      return {
-        products: [],
-        success: false,
-        error: error.message,
-      };
+      return { products: [], success: false, error: error.message };
     }
   },
 
   async searchProducts(keyword, limit = 12) {
     try {
-      const response = await fetch(
-        `${AMAZON_BACKEND_BASE}/search?keyword=${encodeURIComponent(keyword)}&limit=${limit}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Amazon API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const params = new URLSearchParams({ keyword, limit: String(limit) });
+      const data = await apiClient.get(`/search?${params}`);
       return {
         products: data.products || [],
-        success: true,
+        success: Boolean(data.success) && (data.products || []).length > 0,
+        message: data.message,
       };
     } catch (error) {
       console.error('Error searching products:', error);
-      return {
-        products: [],
-        success: false,
-        error: error.message,
-      };
+      return { products: [], success: false, error: error.message };
     }
   },
 
