@@ -1,4 +1,4 @@
-import { getTrendingListings, getShopListings } from './etsy.js';
+import { getTrendingListings, getShopListings, debugTrendingListings } from './etsy.js';
 import { generateDesign, generateVariations } from './claude.js';
 import { generateImage } from './openai.js';
 
@@ -55,6 +55,15 @@ export async function handleApiRequest({ method, path, query, body, env }) {
       return getTrendingListings({
         category: query.get('category') || 'tshirts',
         limit: query.get('limit') || 12,
+        apiKey: etsyKey,
+        sharedSecret: etsySecret,
+      });
+
+    // Reports the fields Etsy actually returns, so the trend thresholds can be
+    // calibrated against real responses.
+    case 'GET /etsy-debug':
+      return debugTrendingListings({
+        category: query.get('category') || 'tshirts',
         apiKey: etsyKey,
         sharedSecret: etsySecret,
       });

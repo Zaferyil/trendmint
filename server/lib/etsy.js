@@ -30,152 +30,137 @@ const DIGITAL_MARKERS = [
 ];
 
 /**
- * TREND ≠ POPULAR
+ * TREND != POPULAR.
  *
- * This system prioritizes RISING trends (momentum) over established popularity.
- * A new product with 800 views growing fast > established product with 10k stable views
+ * A listing climbing fast from a small base is worth more here than one that
+ * peaked months ago, because the point is to design something while the window
+ * is still open.
  *
- * Tier System:
- * 🟢 Minimum Trend - Early stage, captures emerging trends
- * 🟡 Strong Trend - Significant engagement, reliable signal
- * 🔴 Hot Trend - Major momentum, highest priority for POD
+ * Only two signals are trusted for the thresholds: view count and favourite
+ * count. Rating and review count are shop-level fields on Etsy — they are
+ * absent from search results, so gating on them rejected every single listing.
+ * They are still used for scoring when present.
  */
-
 const TREND_TIERS = {
-  MINIMUM: {
-    name: '🟢 Minimum Trend',
-    views: 50,
-    favorites: 2,
-    favoriteRate: 0.01,      // 1% - very permissive for early trends
-    rating: 3.5,
-  },
-  STRONG: {
-    name: '🟡 Strong Trend',
-    views: 200,
-    favorites: 5,
-    favoriteRate: 0.02,       // 2% - solid engagement
-    rating: 4.0,
-  },
-  HOT: {
-    name: '🔴 Hot Trend',
-    views: 500,
-    favorites: 10,
-    favoriteRate: 0.03,       // 3% - high engagement
-    rating: 4.5,
-  },
+  MINIMUM: { name: '🟢 Minimum Trend', views: 50, favorites: 2, favoriteRate: 0.01 },
+  STRONG: { name: '🟡 Strong Trend', views: 200, favorites: 5, favoriteRate: 0.02 },
+  HOT: { name: '🔴 Hot Trend', views: 500, favorites: 10, favoriteRate: 0.03 },
 };
+
+// Used when the strict pass finds nothing — better a weaker trend list than an
+// empty screen.
+const FALLBACK_TIER = { name: '⚪ Early Signal', views: 0, favorites: 1, favoriteRate: 0 };
 
 function isDigitalListing(listing) {
   const haystack = [listing.title, ...(listing.tags || [])].join(' ').toLowerCase();
   return DIGITAL_MARKERS.some((marker) => haystack.includes(marker));
 }
 
-/**
- * Calculate favorite rate (social proof metric)
- * Higher ratio = more people love it = stronger trend signal
- */
-function calculateFavoriteRate(views, favorites) {
-  return views > 0 ? (favorites / views) : 0;
+/** Etsy has used three names for the creation date across API versions. */
+function getCreatedTimestamp(listing) {
+  return (
+    listing.original_creation_timestamp ??
+    listing.created_timestamp ??
+    listing.creation_timestamp ??
+    null
+  );
 }
 
-/**
- * Calculate recency boost for new listings
- * Listings created in last 30 days get exponential boost
- * This helps surface rising trends before they become obvious
- */
-function getRecencyBoost(createdTimestamp) {
-  if (!createdTimestamp) return 1.0;
-
-  const createdDate = new Date(createdTimestamp * 1000);
-  const ageInDays = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
-
-  // Listings < 30 days old get 1.5x boost (they're emerging)
-  // Listings 30-60 days old get 1.2x boost
-  // Listings > 60 days old get 1.0x (no boost)
-  if (ageInDays < 30) return 1.5;
-  if (ageInDays < 60) return 1.2;
-  return 1.0;
+function getAgeInDays(listing) {
+  const timestamp = getCreatedTimestamp(listing);
+  if (!timestamp) return null; // unknown age — never treated as "old"
+  return (Date.now() - timestamp * 1000) / (1000 * 60 * 60 * 24);
 }
 
-/**
- * Classify listing into tier + calculate priority score
- * Returns: { tier, tierName, priorityScore, favoriteRate, ageInDays, classification }
- * or null if doesn't meet minimum threshold
- */
-function classifyTrend(listing) {
-  const views = listing.views || 0;
-  const favorites = listing.num_favorers ?? listing.favorite_count ?? 0;
-  const reviews = listing.num_reviews ?? 0;
-  const rating = listing.rating || 0;
-  const favoriteRate = calculateFavoriteRate(views, favorites);
-  const recencyBoost = getRecencyBoost(listing.created_timestamp);
-
-  // Determine listing age for classification
-  const createdDate = listing.created_timestamp
-    ? new Date(listing.created_timestamp * 1000)
-    : null;
-  const ageInDays = createdDate
-    ? (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24)
-    : 999;
-
-  // Check tier match (ordered from strictest to loosest)
-  let tier = null;
-
-  if (views >= TREND_TIERS.HOT.views &&
-      favorites >= TREND_TIERS.HOT.favorites &&
-      favoriteRate >= TREND_TIERS.HOT.favoriteRate &&
-      rating >= TREND_TIERS.HOT.rating) {
-    tier = 'HOT';
-  } else if (views >= TREND_TIERS.STRONG.views &&
-             favorites >= TREND_TIERS.STRONG.favorites &&
-             favoriteRate >= TREND_TIERS.STRONG.favoriteRate &&
-             rating >= TREND_TIERS.STRONG.rating) {
-    tier = 'STRONG';
-  } else if (views >= TREND_TIERS.MINIMUM.views &&
-             favorites >= TREND_TIERS.MINIMUM.favorites &&
-             favoriteRate >= TREND_TIERS.MINIMUM.favoriteRate &&
-             rating >= TREND_TIERS.MINIMUM.rating) {
-    tier = 'MINIMUM';
-  }
-
-  if (!tier) return null; // Doesn't meet minimum threshold
-
-  // Calculate priority score (higher = more trending)
-  // Aligned with Etsy's engagement model:
-  // - View Momentum (30%): Recency = how fresh/new the product is
-  // - Favorite Rate (30%): Favorites/Views ratio = engagement quality
-  // - Sales/Conversion Proxy (30%): Reviews count = likely sales indicator
-  // - Review Quality (10%): Rating = customer satisfaction
-
-  const viewMomentumScore = (ageInDays < 30 ? 100 : ageInDays < 60 ? 80 : 60);  // Rising vs established
-  const favoriteRateScore = (favoriteRate * 100);  // How many people loved it vs viewed it
-  const conversionProxyScore = Math.min(reviews * 15, 100);  // Reviews as sales indicator (max 100 at 6+ reviews)
-  const qualityScore = (rating / 5) * 100;  // Customer satisfaction
-
-  const priorityScore =
-    (viewMomentumScore * 0.30) +      // Rising trends prioritized
-    (favoriteRateScore * 0.30) +      // High engagement wins
-    (conversionProxyScore * 0.30) +   // Proven sales/conversions
-    (qualityScore * 0.10);            // Quality matters least
-
-  // Apply recency boost for final score
-  const finalScore = priorityScore * recencyBoost;
+/** Reads the engagement fields, tolerating the names Etsy varies between. */
+function readMetrics(listing) {
+  const views = Number(listing.views ?? listing.num_views ?? 0) || 0;
+  const favorites = Number(listing.num_favorers ?? listing.favorite_count ?? 0) || 0;
+  const reviews = Number(listing.num_reviews ?? listing.review_count ?? 0) || 0;
+  const rating = Number(listing.rating ?? listing.review_average ?? 0) || 0;
+  const ageInDays = getAgeInDays(listing);
 
   return {
-    tier,
-    tierName: TREND_TIERS[tier].name,
-    priorityScore: finalScore,
-    favoriteRate: (favoriteRate * 100).toFixed(2) + '%',
-    ageInDays: Math.floor(ageInDays),
-    classification: ageInDays < 30 ? '🔥 RISING' : '⭐ ESTABLISHED',
+    views,
+    favorites,
+    reviews,
+    rating,
+    ageInDays,
+    // Share of viewers who cared enough to save it. This is the one metric that
+    // is independent of raw popularity, so a small listing with real pull is
+    // not buried under a large one with weak pull.
+    favoriteRate: views > 0 ? favorites / views : 0,
   };
 }
 
+function matchesTier(metrics, tier) {
+  return (
+    metrics.views >= tier.views &&
+    metrics.favorites >= tier.favorites &&
+    metrics.favoriteRate >= tier.favoriteRate
+  );
+}
+
 /**
- * Checks if a listing qualifies as a trend (any tier)
+ * Scores a listing so rising ones outrank merely popular ones.
+ *
+ * Weights follow the engagement model: momentum 30%, favourite rate 30%,
+ * conversion proxy 30% (review count stands in for sales, which the public API
+ * does not expose), quality 10%. Missing fields simply score zero rather than
+ * disqualifying the listing.
  */
-function isTrendingListing(listing) {
-  return classifyTrend(listing) !== null;
+function scoreListing(metrics) {
+  const { ageInDays, favoriteRate, reviews, rating, views } = metrics;
+
+  // Unknown age scores neutral: claiming it is fresh would promote it over
+  // listings that are genuinely new, claiming it is old would bury it.
+  const age = ageInDays;
+  const momentum = age === null ? 80 : age < 30 ? 100 : age < 60 ? 80 : 60;
+  const engagement = Math.min(favoriteRate * 1000, 100); // 10% fav rate maxes out
+  const conversion = Math.min(reviews * 15, 100);
+  const quality = (rating / 5) * 100;
+  const reach = Math.min(views / 10, 100);
+
+  const base =
+    momentum * 0.3 +
+    engagement * 0.3 +
+    (reviews > 0 ? conversion : reach) * 0.3 + // no reviews? fall back to reach
+    quality * 0.1;
+
+  const recencyBoost = age === null ? 1.0 : age < 30 ? 1.5 : age < 60 ? 1.2 : 1.0;
+  return base * recencyBoost;
+}
+
+/**
+ * Returns tier info for a listing, or null when it clears no tier.
+ * `tiers` lets the caller retry with the looser fallback tier.
+ */
+function classifyTrend(listing, tiers = TREND_TIERS) {
+  const metrics = readMetrics(listing);
+
+  let tier = null;
+  for (const key of ['HOT', 'STRONG', 'MINIMUM']) {
+    if (tiers[key] && matchesTier(metrics, tiers[key])) {
+      tier = tiers[key];
+      break;
+    }
+  }
+  if (!tier) return null;
+
+  const isRising = metrics.ageInDays !== null && metrics.ageInDays < 30;
+
+  return {
+    metrics,
+    tierName: tier.name,
+    score: scoreListing(metrics),
+    isRising,
+    // No label at all when the age is unknown — better a missing badge than a
+    // confident wrong one.
+    classification:
+      metrics.ageInDays === null ? null : isRising ? '🔥 RISING' : '⭐ ESTABLISHED',
+    ageInDays: metrics.ageInDays === null ? null : Math.floor(metrics.ageInDays),
+    favoriteRate: `${(metrics.favoriteRate * 100).toFixed(2)}%`,
+  };
 }
 
 /**
@@ -189,12 +174,54 @@ function buildApiKeyHeader(apiKey, sharedSecret) {
   return sharedSecret ? `${apiKey}:${sharedSecret}` : apiKey;
 }
 
+async function fetchActiveListings({ category, limit, credential }) {
+  const params = new URLSearchParams({
+    keywords: TRENDING_CATEGORIES[category] || category,
+    sort_on: 'score',
+    sort_order: 'desc',
+    // Over-fetch: the digital filter and the trend filter both discard rows.
+    limit: String(Math.min(limit * 5, 100)),
+  });
+
+  const response = await fetch(`${ETSY_API_BASE}/listings/active?${params}`, {
+    headers: { 'x-api-key': credential },
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    return { error: { status: response.status, detail: detail.slice(0, 500) } };
+  }
+
+  const data = await response.json();
+  return { results: data.results || [] };
+}
+
+function toCard(listing, trend) {
+  return {
+    id: `etsy-${listing.listing_id}`,
+    name: listing.title,
+    description: listing.description?.substring(0, 100),
+    url: listing.url,
+    price: listing.price
+      ? `${listing.price.amount / listing.price.divisor} ${listing.price.currency_code}`
+      : null,
+    metrics: {
+      views: trend.metrics.views,
+      favorites: trend.metrics.favorites,
+      reviews: trend.metrics.reviews,
+      rating: trend.metrics.rating,
+      favoriteRate: trend.favoriteRate,
+      trendTier: trend.tierName,
+      trendAge: trend.ageInDays,
+      classification: trend.classification,
+    },
+    tags: listing.tags || [],
+  };
+}
+
 /**
  * Fetches trending Etsy listings server-side, where the API key stays secret
  * and there is no CORS preflight to fail.
- *
- * Returns listings classified as TRENDING (not just popular).
- * Prioritizes rising trends (new products with momentum) over established products.
  */
 export async function getTrendingListings({ category = 'tshirts', limit = 12, apiKey, sharedSecret }) {
   const credential = buildApiKeyHeader(apiKey, sharedSecret);
@@ -204,73 +231,99 @@ export async function getTrendingListings({ category = 'tshirts', limit = 12, ap
   }
 
   const wanted = Math.min(Number(limit) || 12, 100);
+  const { results, error } = await fetchActiveListings({ category, limit: wanted, credential });
 
-  const params = new URLSearchParams({
-    keywords: TRENDING_CATEGORIES[category] || category,
-    sort_on: 'score',
-    sort_order: 'desc',
-    // Over-fetch significantly because we filter for trending metrics
-    // Digital listings + below-threshold listings will be removed
-    limit: String(Math.min(wanted * 5, 100)),
-  });
-
-  const response = await fetch(`${ETSY_API_BASE}/listings/active?${params}`, {
-    headers: { 'x-api-key': credential },
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
+  if (error) {
     return {
-      status: response.status,
-      body: { listings: [], error: `Etsy API error (${response.status})`, detail: detail.slice(0, 500) },
+      status: error.status,
+      body: { listings: [], error: `Etsy API error (${error.status})`, detail: error.detail },
     };
   }
 
-  const data = await response.json();
+  const garments = results.filter((listing) => !isDigitalListing(listing));
 
-  // Step 1: Remove digital products
-  const garments = (data.results || []).filter((listing) => !isDigitalListing(listing));
+  // Strict pass first; if the category is thin today, retry with the fallback
+  // tier so the UI shows the best available rather than nothing at all.
+  let mode = 'trending';
+  let classified = garments
+    .map((listing) => ({ listing, trend: classifyTrend(listing) }))
+    .filter((row) => row.trend !== null);
 
-  // Step 2: Classify trends and filter for qualified trends
-  const classifiedListings = garments
-    .map((listing) => {
-      const trendInfo = classifyTrend(listing);
-      return trendInfo ? { listing, trendInfo } : null;
-    })
-    .filter((item) => item !== null);
+  if (classified.length === 0) {
+    mode = 'early-signal';
+    classified = garments
+      .map((listing) => ({ listing, trend: classifyTrend(listing, { MINIMUM: FALLBACK_TIER }) }))
+      .filter((row) => row.trend !== null);
+  }
 
-  // Step 3: Sort by priority score (rising trends first, then by engagement)
-  const sortedListings = classifiedListings.sort((a, b) => {
-    // Rising trends (< 30 days) come first
-    const aIsRising = a.trendInfo.ageInDays < 30 ? 1 : 0;
-    const bIsRising = b.trendInfo.ageInDays < 30 ? 1 : 0;
-    if (aIsRising !== bIsRising) return bIsRising - aIsRising;
-
-    // Then sort by priority score
-    return b.trendInfo.priorityScore - a.trendInfo.priorityScore;
+  // Rising listings first, then by score inside each group.
+  classified.sort((a, b) => {
+    if (a.trend.isRising !== b.trend.isRising) return a.trend.isRising ? -1 : 1;
+    return b.trend.score - a.trend.score;
   });
 
-  // Step 4: Format response
-  const listings = sortedListings.slice(0, wanted).map(({ listing, trendInfo }) => ({
-    id: `etsy-${listing.listing_id}`,
-    name: listing.title,
-    description: listing.description?.substring(0, 100),
-    url: listing.url,
-    price: listing.price ? `${listing.price.amount / listing.price.divisor} ${listing.price.currency_code}` : null,
-    metrics: {
-      views: listing.views || 0,
-      favorites: listing.num_favorers ?? listing.favorite_count ?? 0,
-      reviews: listing.num_reviews ?? 0,
-      rating: listing.rating ?? 0,
-      favoriteRate: trendInfo.favoriteRate,
-      trendTier: trendInfo.tierName,
-      trendAge: trendInfo.ageInDays,
-      classification: trendInfo.classification,
-    },
-    tags: listing.tags || [],
-  }));
+  const listings = classified.slice(0, wanted).map(({ listing, trend }) => toCard(listing, trend));
 
-  return { status: 200, body: { listings, success: true } };
+  return {
+    status: 200,
+    body: {
+      listings,
+      success: true,
+      // Lets the UI (and a human reading /api/etsy-trends) see where rows went.
+      meta: {
+        mode,
+        fetched: results.length,
+        afterDigitalFilter: garments.length,
+        afterTrendFilter: classified.length,
+      },
+    },
+  };
+}
+
+/**
+ * Diagnostic endpoint: reports which fields Etsy actually returns for this
+ * account, so the thresholds above can be calibrated against real data instead
+ * of assumptions about the schema.
+ */
+export async function debugTrendingListings({ category = 'tshirts', apiKey, sharedSecret }) {
+  const credential = buildApiKeyHeader(apiKey, sharedSecret);
+
+  if (!credential) {
+    return { status: 501, body: { error: 'ETSY_API_KEY not configured on the server' } };
+  }
+
+  const { results, error } = await fetchActiveListings({ category, limit: 4, credential });
+
+  if (error) {
+    return { status: error.status, body: { error: `Etsy API error (${error.status})`, detail: error.detail } };
+  }
+
+  const sample = results[0] || null;
+
+  return {
+    status: 200,
+    body: {
+      totalReturned: results.length,
+      availableFields: sample ? Object.keys(sample).sort() : [],
+      engagementFieldsPresent: sample
+        ? {
+            views: 'views' in sample ? sample.views : '(field missing)',
+            num_favorers: 'num_favorers' in sample ? sample.num_favorers : '(field missing)',
+            num_reviews: 'num_reviews' in sample ? sample.num_reviews : '(field missing)',
+            rating: 'rating' in sample ? sample.rating : '(field missing)',
+            original_creation_timestamp:
+              'original_creation_timestamp' in sample ? sample.original_creation_timestamp : '(field missing)',
+            created_timestamp: 'created_timestamp' in sample ? sample.created_timestamp : '(field missing)',
+          }
+        : null,
+      // What the classifier makes of the first few listings.
+      classified: results.slice(0, 4).map((listing) => ({
+        title: listing.title?.slice(0, 60),
+        metrics: readMetrics(listing),
+        passesStrict: classifyTrend(listing) !== null,
+      })),
+    },
+  };
 }
 
 export async function getShopListings({ shopId, apiKey, sharedSecret }) {
