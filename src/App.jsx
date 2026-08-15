@@ -348,7 +348,7 @@ function App() {
 
       <Tabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         {error && (
           <div className="mb-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 text-yellow-800">
             <p className="font-semibold">⚠️ Note:</p>
@@ -365,11 +365,11 @@ function App() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
                   {activeTab === 'etsy' ? '🟡 Etsy Trends' : '🟠 Amazon Trends'}
                 </h2>
                 {isLoadingTrends && <span className="animate-spin text-2xl">⏳</span>}
@@ -381,7 +381,7 @@ function App() {
                 <button
                   onClick={() => loadTrends(activeTab)}
                   disabled={isLoadingTrends}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all"
+                  className="px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-semibold bg-green-500 text-white hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all"
                 >
                   {isLoadingTrends ? '⏳ Analyzing...' : '🔄 Run Trend Analysis'}
                 </button>
@@ -393,7 +393,7 @@ function App() {
                         key={window.days}
                         onClick={() => setMaxAgeDays(window.days)}
                         disabled={isLoadingTrends}
-                        className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all disabled:opacity-50 ${
+                        className={`px-3 py-2 rounded-md text-xs font-semibold transition-all disabled:opacity-50 ${
                           maxAgeDays === window.days
                             ? 'bg-gray-800 text-white'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
