@@ -8,6 +8,7 @@ export default function ActionButtons({
   isGeneratingDesign,
   isGeneratingImage,
   isDesignReady,
+  isImageReady,
 }) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
@@ -51,11 +52,13 @@ export default function ActionButtons({
         )}
       </button>
 
+      {/* Enabled on the artwork rather than the design: MockupMaker needs a
+          picture to place, and a design that has not been drawn yet has none. */}
       <button
         onClick={onSendToMockupMaker}
-        disabled={!isDesignReady}
+        disabled={!isImageReady}
         className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-all ${
-          isDesignReady
+          isImageReady
             ? 'bg-blue-500 hover:bg-blue-600 cursor-pointer'
             : 'bg-gray-300 cursor-not-allowed'
         }`}
