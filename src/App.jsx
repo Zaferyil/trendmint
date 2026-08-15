@@ -103,6 +103,8 @@ function App() {
             metrics: {
               views: listing.metrics.views || 'N/A',
               favorites: listing.metrics.favorites || 0,
+              reviews: listing.metrics.reviews || 0,
+              rating: listing.metrics.rating || 0,
               growth: Math.floor(Math.random() * 60) + 20,
             },
             tags: listing.tags,
