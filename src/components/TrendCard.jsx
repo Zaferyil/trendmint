@@ -34,8 +34,13 @@ export default function TrendCard({ trend, source }) {
 
       {/* Trend Tier + Age Info */}
       {trend.metrics?.trendTier && (
-        <div className="mb-2 flex items-center gap-2">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-gray-700">{trend.metrics.trendTier}</span>
+          {trend.garment && (
+            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+              {trend.garment}
+            </span>
+          )}
           {trend.metrics.trendAge !== null && trend.metrics.trendAge !== undefined && (
             <span className="text-xs text-gray-500">
               • {trend.metrics.trendAge} günlük ilan
@@ -64,10 +69,17 @@ export default function TrendCard({ trend, source }) {
                   ❤️ {trend.metrics.favorites}
                 </span>
               )}
-              {/* Favourite rate, not a growth figure: Etsy exposes no
-                  historical counts, so any "% growth" here would be invented. */}
-              {trend.metrics.favoriteRate && (
+              {/* Per-day rate, not a growth figure: Etsy exposes no historical
+                  counts, so any "% growth" here would be invented. Totals are
+                  divided by listing age, which is what separates an active
+                  listing from one that merely had years to accumulate. */}
+              {trend.metrics.viewsPerDay !== undefined && (
                 <span className="px-2 py-1 bg-green-100 rounded text-green-700 font-semibold">
+                  ⚡ {trend.metrics.viewsPerDay} görüntülenme/gün
+                </span>
+              )}
+              {trend.metrics.favoriteRate && (
+                <span className="px-2 py-1 bg-purple-50 rounded text-purple-700 font-semibold">
                   📈 {trend.metrics.favoriteRate} kaydetme oranı
                 </span>
               )}
