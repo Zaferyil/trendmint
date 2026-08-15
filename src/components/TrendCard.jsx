@@ -18,11 +18,11 @@ export default function TrendCard({ trend, source }) {
         isSelected ? 'ring-2 ring-green-500 border-green-500' : `border-gray-200 ${sourceColor}`
       }`}
     >
-      <div className="flex items-start justify-between mb-3">
-        <h3 className="text-lg font-semibold text-gray-800 flex-1">{trend.name}</h3>
-        <div className="flex gap-2">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex-1 min-w-0">{trend.name}</h3>
+        <div className="flex flex-wrap justify-end gap-1.5 shrink-0">
           {trend.metrics?.classification && (
-            <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+            <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-2 py-1 rounded whitespace-nowrap">
               {trend.metrics.classification}
             </span>
           )}
@@ -53,19 +53,19 @@ export default function TrendCard({ trend, source }) {
         <p className="text-gray-600 text-sm mb-3">{trend.description}</p>
       )}
 
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex gap-2">
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {trend.metrics && (
             <>
               {/* Compared against undefined, not truthiness: a genuine zero is
                   information, and hiding the badge reads as "no data". */}
               {trend.metrics.views !== undefined && (
-                <span className="px-2 py-1 bg-gray-100 rounded text-gray-700">
+                <span className="px-2 py-1 bg-gray-100 rounded text-gray-700 whitespace-nowrap">
                   👁️ {trend.metrics.views}
                 </span>
               )}
               {trend.metrics.favorites !== undefined && (
-                <span className="px-2 py-1 bg-red-50 rounded text-red-600 font-semibold">
+                <span className="px-2 py-1 bg-red-50 rounded text-red-600 font-semibold whitespace-nowrap">
                   ❤️ {trend.metrics.favorites}
                 </span>
               )}
@@ -74,12 +74,12 @@ export default function TrendCard({ trend, source }) {
                   divided by listing age, which is what separates an active
                   listing from one that merely had years to accumulate. */}
               {trend.metrics.viewsPerDay !== undefined && (
-                <span className="px-2 py-1 bg-green-100 rounded text-green-700 font-semibold">
+                <span className="px-2 py-1 bg-green-100 rounded text-green-700 font-semibold whitespace-nowrap">
                   ⚡ {trend.metrics.viewsPerDay} views/day
                 </span>
               )}
               {trend.metrics.favoriteRate && (
-                <span className="px-2 py-1 bg-purple-50 rounded text-purple-700 font-semibold">
+                <span className="px-2 py-1 bg-purple-50 rounded text-purple-700 font-semibold whitespace-nowrap">
                   📈 {trend.metrics.favoriteRate} save rate
                 </span>
               )}
@@ -87,7 +87,7 @@ export default function TrendCard({ trend, source }) {
           )}
         </div>
         {isSelected && (
-          <span className="text-green-600 font-semibold">✓ Selected</span>
+          <span className="text-green-600 font-semibold whitespace-nowrap">✓ Selected</span>
         )}
       </div>
 
