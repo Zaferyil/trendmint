@@ -23,6 +23,19 @@ export default async (request) => {
     query: url.searchParams,
     body,
     env: process.env,
+    // Kick off the long-running work and return. Awaiting the fetch only waits
+    // for Netlify to accept the invocation (202), not for the image itself.
+    startImageJob: async ({ id, options }) => {
+      await fetch(`${url.origin}/.netlify/functions/generate-image-background`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        // The key is stripped: the background function reads it from the
+        // environment, so it never travels over this hop.
+        body: JSON.stringify({ id, options: { ...options, apiKey: undefined } }),
+      }).catch((error) => {
+        console.error('Failed to start image job:', error);
+      });
+    },
   });
 
   return Response.json(result.body, {

@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { handleApiRequest } from './lib/router.js';
+import { runImageJob } from './lib/imageJobs.js';
 
 const PORT = Number(process.env.API_PORT) || 3001;
 
@@ -44,6 +45,9 @@ const server = createServer(async (req, res) => {
       query: url.searchParams,
       body,
       env: process.env,
+      // No function timeout locally, so the job is finished before the client
+      // is told about it. Its first poll then returns the image immediately.
+      startImageJob: runImageJob,
     });
     res.writeHead(result.status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
     res.end(JSON.stringify(result.body));

@@ -1,6 +1,6 @@
 import { getTrendingListings, getShopListings, debugTrendingListings } from './etsy.js';
 import { generateDesign, generateVariations } from './claude.js';
-import { generateImage } from './openai.js';
+import { createPendingJob, getJob, putJob } from './imageJobs.js';
 
 /**
  * Reads a server-side secret, falling back to the legacy VITE_-prefixed name so
@@ -23,7 +23,7 @@ function secret(env, name, legacyName) {
  * @param {{ method: string, path: string, query: URLSearchParams, body: any, env: Record<string, string|undefined> }} request
  * @returns {Promise<{ status: number, body: any }>}
  */
-export async function handleApiRequest({ method, path, query, body, env }) {
+export async function handleApiRequest({ method, path, query, body, env, startImageJob }) {
   const route = `${method.toUpperCase()} ${path.replace(/\/+$/, '') || '/'}`;
   const etsyKey = secret(env, 'ETSY_API_KEY', 'VITE_ETSY_API_KEY');
   const etsySecret = secret(env, 'ETSY_SHARED_SECRET', 'VITE_ETSY_SHARED_SECRET');
@@ -95,14 +95,57 @@ export async function handleApiRequest({ method, path, query, body, env }) {
         model: env.CLAUDE_MODEL,
       });
 
-    case 'POST /generate-image':
-      return generateImage({
-        prompt: body?.prompt,
+    // Starts the work and returns immediately. Drawing an image takes longer
+    // than Netlify allows a synchronous function to run, so the request that
+    // starts it cannot also wait for it — that was the 504.
+    case 'POST /generate-image': {
+      if (!body?.prompt) {
+        return { status: 400, body: { success: false, error: 'prompt is required' } };
+      }
+      if (!openaiKey) {
+        return { status: 501, body: { success: false, error: 'OPENAI_API_KEY not configured on the server' } };
+      }
+
+      const { id, job } = createPendingJob(body.prompt);
+      await putJob(id, job);
+
+      const options = {
+        prompt: body.prompt,
         apiKey: openaiKey,
         model: env.OPENAI_IMAGE_MODEL,
         size: body?.size,
         quality: body?.quality || env.OPENAI_IMAGE_QUALITY,
-      });
+      };
+
+      // In Netlify, startImageJob hands off to a background function. Locally
+      // there is no timeout, so the dev server passes a runner that generates
+      // inline before answering.
+      if (typeof startImageJob === 'function') {
+        await startImageJob({ id, options });
+      }
+
+      return { status: 202, body: { success: true, jobId: id, status: 'pending' } };
+    }
+
+    case 'GET /image-job': {
+      const id = query.get('id');
+      if (!id) return { status: 400, body: { success: false, error: 'id is required' } };
+
+      const job = await getJob(id);
+      if (!job) {
+        // Also covers a job whose blob expired, which the client should treat
+        // as a failure rather than polling forever.
+        return { status: 404, body: { success: false, status: 'unknown', error: 'Job not found or expired' } };
+      }
+
+      if (job.status === 'done') {
+        return { status: 200, body: { success: true, status: 'done', imageUrl: job.imageUrl } };
+      }
+      if (job.status === 'error') {
+        return { status: 200, body: { success: false, status: 'error', error: job.error } };
+      }
+      return { status: 200, body: { success: true, status: 'pending' } };
+    }
 
     // Amazon has no public product API. Until a data provider is wired up the
     // endpoint answers successfully with no products so the UI falls back to

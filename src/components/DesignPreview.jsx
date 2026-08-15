@@ -1,6 +1,11 @@
 import React from 'react';
 
-export default function DesignPreview({ design, isLoading = false, isGeneratingImage = false }) {
+export default function DesignPreview({
+  design,
+  isLoading = false,
+  isGeneratingImage = false,
+  imageWaitSeconds = 0,
+}) {
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Design Preview</h3>
@@ -22,6 +27,11 @@ export default function DesignPreview({ design, isLoading = false, isGeneratingI
               <div className="text-center text-gray-500">
                 <p className="text-4xl mb-2 animate-spin">⏳</p>
                 <p>Generating artwork...</p>
+                {/* A minute of no feedback reads as a hang, so the elapsed
+                    time and an expected range are both shown. */}
+                <p className="text-xs text-gray-400 mt-1">
+                  {imageWaitSeconds > 0 ? `${imageWaitSeconds}s` : 'Starting'} · usually 15-60s
+                </p>
               </div>
             ) : (
               <div className="text-center text-gray-400">

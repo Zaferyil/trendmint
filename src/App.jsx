@@ -118,6 +118,7 @@ function App() {
   const [isLiveData, setIsLiveData] = useState(false);
   const [maxAgeDays, setMaxAgeDays] = useState(7);
   const [analysisNote, setAnalysisNote] = useState(null);
+  const [imageWaitSeconds, setImageWaitSeconds] = useState(0);
   const [etsyTrends, setEtsyTrends] = useState(MOCK_ETSY_TRENDS);
   const [amazonTrends, setAmazonTrends] = useState(MOCK_AMAZON_TRENDS);
 
@@ -255,10 +256,15 @@ function App() {
     if (!design) return;
 
     setIsGeneratingImage(true);
+    setImageWaitSeconds(0);
     setError(null);
 
     try {
-      const result = await imageService.generateImage(design);
+      // Generation runs on a background worker and is polled for, so it can
+      // take a minute. Without a visible counter the wait reads as a hang.
+      const result = await imageService.generateImage(design, {
+        onProgress: setImageWaitSeconds,
+      });
 
       if (result.success) {
         setDesign((current) => ({ ...current, imageUrl: result.imageUrl }));
@@ -269,6 +275,7 @@ function App() {
       setError('Error generating image: ' + err.message);
     } finally {
       setIsGeneratingImage(false);
+      setImageWaitSeconds(0);
     }
   };
 
@@ -461,6 +468,7 @@ function App() {
               design={design}
               isLoading={isGeneratingDesign}
               isGeneratingImage={isGeneratingImage}
+              imageWaitSeconds={imageWaitSeconds}
             />
 
             <ActionButtons
