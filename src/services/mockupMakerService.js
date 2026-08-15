@@ -1,123 +1,103 @@
-const MOCKUP_MAKER_API_URL = import.meta.env.VITE_MOCKUP_MAKER_API_URL || 'http://localhost:3000/api';
+/**
+ * Design handoff to MockupMaker.
+ *
+ * The two apps sit on different domains, so nothing shared by the browser —
+ * localStorage, sessionStorage, cookies — reaches across. postMessage is the
+ * one channel that does, and it carries a data URL of any size, which matters
+ * because a generated design is a base64 PNG measured in megabytes.
+ *
+ * The handshake exists because neither side knows the other's timing. The new
+ * tab announces itself once it has mounted; until that arrives the design is
+ * re-sent on a short interval, so a missed announcement still lands. Delivery
+ * is only reported once MockupMaker acknowledges it.
+ */
+
+const MOCKUP_MAKER_URL =
+  import.meta.env.VITE_MOCKUP_MAKER_URL || 'https://mockuppmaker.netlify.app';
+const MOCKUP_MAKER_ORIGIN = new URL(MOCKUP_MAKER_URL).origin;
+
+const RESEND_INTERVAL_MS = 700;
+const HANDOFF_TIMEOUT_MS = 20000;
 
 export const mockupMakerService = {
   async sendDesignToMockupMaker(design) {
-    try {
-      // TrendMint'ten MockupMaker'a localStorage ile transfer
-      const transfer = {
-        design: {
-          id: `design_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
-          name: design.designName,
-          imageUrl: design.designImage,
-          imagePrompt: design.designName,
-          trendName: 'Custom Design',
-          category: design.category || 'apparel',
-          colors: design.colors || [],
-          source: 'trendmint',
-          createdAt: Date.now()
+    const imageUrl = design?.designImage;
+    if (!imageUrl || imageUrl === '/placeholder-design.png') {
+      return {
+        success: false,
+        error: 'No artwork yet — press "Generate Image" before sending.',
+        mockup: null,
+      };
+    }
+
+    const payload = {
+      type: 'trendmint:design',
+      design: {
+        id: `design_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+        name: design.designName || 'TrendMint design',
+        imageUrl,
+        category: design.category || 'apparel',
+        colors: design.colors || [],
+        source: 'trendmint',
+        createdAt: Date.now(),
+      },
+    };
+
+    // Opened from the click handler, so this is a user gesture and survives
+    // pop-up blocking.
+    const target = window.open(MOCKUP_MAKER_URL, '_blank');
+    if (!target) {
+      return {
+        success: false,
+        error: 'MockupMaker could not be opened — allow pop-ups for this site.',
+        mockup: null,
+      };
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+
+      // Posts sent before the tab has loaded MockupMaker are dropped by the
+      // browser rather than delivered to whatever is there — the targetOrigin
+      // has to match. That is why this repeats instead of firing once.
+      const send = () => {
+        try {
+          target.postMessage(payload, MOCKUP_MAKER_ORIGIN);
+        } catch {
+          // Tab closed mid-flight; the timeout reports it.
         }
       };
 
-      // localStorage'a tasarımı kaydet
-      localStorage.setItem('trendmint_pending_transfer', JSON.stringify(transfer));
-
-      // MockupMaker'ı yeni sekmede aç
-      const mockupMakerUrl = 'https://mockuppmaker.netlify.app/';
-      window.open(mockupMakerUrl, '_blank');
-
-      return {
-        success: true,
-        mockup: null,
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        clearInterval(resend);
+        clearTimeout(timeout);
+        window.removeEventListener('message', onMessage);
+        resolve(result);
       };
-    } catch (error) {
-      console.error('Error sending design to MockupMaker:', error);
-      return {
-        success: false,
-        error: error.message,
-        mockup: null,
-      };
-    }
-  },
 
-  async getAvailableTemplates() {
-    try {
-      const response = await fetch(`${MOCKUP_MAKER_API_URL}/templates`);
-
-      if (!response.ok) {
-        throw new Error(`MockupMaker API error: ${response.statusText}`);
+      function onMessage(event) {
+        if (event.origin !== MOCKUP_MAKER_ORIGIN) return;
+        if (event.data?.type === 'mockupmaker:ready') send();
+        if (event.data?.type === 'mockupmaker:received') {
+          finish({ success: true, mockup: null });
+        }
       }
 
-      const data = await response.json();
-      return {
-        success: true,
-        templates: data,
-      };
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-      return {
-        success: false,
-        error: error.message,
-        templates: [],
-      };
-    }
-  },
-
-  async generateMockupWithTemplate(designImage, templateId, productColor = 'black') {
-    try {
-      const response = await fetch(`${MOCKUP_MAKER_API_URL}/generate-mockup-template`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          designImage,
-          templateId,
-          productColor,
-          timestamp: new Date().toISOString(),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`MockupMaker API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return {
-        success: true,
-        mockup: data,
-      };
-    } catch (error) {
-      console.error('Error generating mockup with template:', error);
-      return {
-        success: false,
-        error: error.message,
-        mockup: null,
-      };
-    }
-  },
-
-  async exportMockup(mockupId, format = 'png') {
-    try {
-      const response = await fetch(
-        `${MOCKUP_MAKER_API_URL}/export/${mockupId}?format=${format}`
+      window.addEventListener('message', onMessage);
+      const resend = setInterval(send, RESEND_INTERVAL_MS);
+      const timeout = setTimeout(
+        () =>
+          finish({
+            success: false,
+            error: 'MockupMaker did not answer. Reload the new tab and try again.',
+            mockup: null,
+          }),
+        HANDOFF_TIMEOUT_MS,
       );
 
-      if (!response.ok) {
-        throw new Error(`Export error: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      return {
-        success: true,
-        blob,
-      };
-    } catch (error) {
-      console.error('Error exporting mockup:', error);
-      return {
-        success: false,
-        error: error.message,
-        blob: null,
-      };
-    }
+      send();
+    });
   },
 };

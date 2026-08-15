@@ -322,15 +322,14 @@ function App() {
     }
   };
 
-  const handleSendToMockupMaker = async (designToSend, productColor = 'black') => {
+  const handleSendToMockupMaker = async (designToSend) => {
     if (!designToSend) return;
 
     try {
       const mockupResult = await mockupMakerService.sendDesignToMockupMaker({
         designName: designToSend.name,
-        designImage: designToSend.imageUrl || '/placeholder-design.png',
+        designImage: designToSend.imageUrl,
         category: 'tshirt',
-        productColor: productColor,
         colors: designToSend.colors,
       });
 
