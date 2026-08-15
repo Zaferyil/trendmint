@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './styles/globals.css';
 import Header from './components/Header';
 import Tabs from './components/Tabs';
@@ -61,6 +61,14 @@ const MOCK_AMAZON_TRENDS = [
   },
 ];
 
+// Physical garments only — the label drives the Etsy search, the garment name
+// goes into the design prompt so the artwork suits the product.
+const APPAREL_CATEGORIES = [
+  { id: 'tshirts', label: '👕 T-Shirts', garment: 't-shirt' },
+  { id: 'sweatshirts', label: '🧥 Sweatshirts', garment: 'sweatshirt' },
+  { id: 'hoodies', label: '🎽 Hoodies', garment: 'hoodie' },
+];
+
 function App() {
   const [activeTab, setActiveTab] = useState('etsy');
   const [selectedTrend, setSelectedTrend] = useState(null);
@@ -73,22 +81,19 @@ function App() {
   const [isExportingDesign, setIsExportingDesign] = useState(false);
   const [error, setError] = useState(null);
   const [isLoadingTrends, setIsLoadingTrends] = useState(false);
+  const [apparelCategory, setApparelCategory] = useState('tshirts');
   const [etsyTrends, setEtsyTrends] = useState(MOCK_ETSY_TRENDS);
   const [amazonTrends, setAmazonTrends] = useState(MOCK_AMAZON_TRENDS);
 
   const currentTrends = activeTab === 'etsy' ? etsyTrends : amazonTrends;
 
-  useEffect(() => {
-    loadTrends(activeTab);
-  }, [activeTab]);
-
-  const loadTrends = async (tabType) => {
+  const loadTrends = useCallback(async (tabType) => {
     setIsLoadingTrends(true);
     setError(null);
 
     try {
       if (tabType === 'etsy') {
-        const result = await etsyService.getTrendingListings('tshirts', 12);
+        const result = await etsyService.getTrendingListings(apparelCategory, 12);
         if (result.success && result.listings.length > 0) {
           const formattedTrends = result.listings.map((listing) => ({
             id: listing.id,
@@ -107,7 +112,7 @@ function App() {
           setError(`Etsy: ${result.error || 'no live trends returned'} — showing demo data.`);
         }
       } else if (tabType === 'amazon') {
-        const result = await amazonService.getBestSellersByCategory('apparel', 12);
+        const result = await amazonService.getBestSellersByCategory(apparelCategory, 12);
         if (result.success && result.products.length > 0) {
           const formattedTrends = result.products.map((product) => ({
             id: product.id,
@@ -130,7 +135,11 @@ function App() {
     } finally {
       setIsLoadingTrends(false);
     }
-  };
+  }, [apparelCategory]);
+
+  useEffect(() => {
+    loadTrends(activeTab);
+  }, [activeTab, loadTrends]);
 
   const handleTrendSelect = (trend) => {
     setSelectedTrend(trend);
@@ -149,7 +158,7 @@ function App() {
     try {
       const result = await claudeService.generateDesignFromTrend(
         selectedTrend.name,
-        'tshirt',
+        APPAREL_CATEGORIES.find((c) => c.id === apparelCategory)?.garment || 't-shirt',
         'modern'
       );
 
@@ -312,6 +321,22 @@ function App() {
                   {activeTab === 'etsy' ? '🟡 Etsy Trends' : '🟠 Amazon Trends'}
                 </h2>
                 {isLoadingTrends && <span className="animate-spin text-2xl">⏳</span>}
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-6">
+                {APPAREL_CATEGORIES.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => setApparelCategory(category.id)}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      apparelCategory === category.id
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {category.label}
+                  </button>
+                ))}
               </div>
 
               {currentTrends.length === 0 ? (
