@@ -96,10 +96,10 @@ const MOCK_AMAZON_TRENDS = [
 // The wider options exist because a 7-day window can legitimately come back
 // empty, and a quiet week should be answerable without editing code.
 const TIME_WINDOWS = [
-  { days: 7, label: 'Son 7 gün' },
-  { days: 14, label: 'Son 14 gün' },
-  { days: 30, label: 'Son 30 gün' },
-  { days: 90, label: 'Son 3 ay' },
+  { days: 7, label: 'Last 7 days' },
+  { days: 14, label: 'Last 14 days' },
+  { days: 30, label: 'Last 30 days' },
+  { days: 90, label: 'Last 3 months' },
 ];
 
 function App() {
@@ -155,12 +155,12 @@ function App() {
           setIsLiveData(true);
           setLastAnalyzedAt(new Date());
           setAnalysisNote(
-            result.note || 'Bu zaman aralığında eşiği geçen ilan bulunamadı.'
+            result.note || 'No listing cleared the threshold in this time window.'
           );
         } else {
           setIsLiveData(false);
           setEtsyTrends(MOCK_ETSY_TRENDS);
-          setError(`Etsy: ${result.error} — demo veri gösteriliyor.`);
+          setError(`Etsy: ${result.error} — showing demo data.`);
         }
       } else if (tabType === 'amazon') {
         const result = await amazonService.getBestSellersByCategory('apparel', 12);
@@ -383,7 +383,7 @@ function App() {
                   disabled={isLoadingTrends}
                   className="px-4 py-2 rounded-lg text-sm font-semibold bg-green-500 text-white hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all"
                 >
-                  {isLoadingTrends ? '⏳ Analiz ediliyor...' : '🔄 Trend Analizi Yap'}
+                  {isLoadingTrends ? '⏳ Analyzing...' : '🔄 Run Trend Analysis'}
                 </button>
 
                 {activeTab === 'etsy' && (
@@ -407,8 +407,8 @@ function App() {
 
                 {activeTab === 'etsy' && lastAnalyzedAt && (
                   <span className="text-xs text-gray-500">
-                    Son analiz: {lastAnalyzedAt.toLocaleTimeString('tr-TR')}
-                    {isLiveData ? ' • canlı Etsy verisi' : ' • demo veri'}
+                    Last analysis: {lastAnalyzedAt.toLocaleTimeString('en-GB')}
+                    {isLiveData ? ' • live Etsy data' : ' • demo data'}
                   </span>
                 )}
               </div>
@@ -418,11 +418,11 @@ function App() {
                   {/* An empty window is a finding, not an error — it says the
                       market is quiet, which is worth knowing before designing. */}
                   <p className="text-gray-600 text-lg mb-2">
-                    {analysisNote || 'Trend bulunamadı'}
+                    {analysisNote || 'No trends found'}
                   </p>
                   {analysisNote && (
                     <p className="text-gray-400 text-sm">
-                      Yukarıdan daha geniş bir zaman aralığı seçebilirsiniz.
+                      Try a wider time window above.
                     </p>
                   )}
                 </div>
