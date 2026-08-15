@@ -94,6 +94,7 @@ function App() {
             id: listing.id,
             name: listing.name,
             description: listing.description,
+            url: listing.url,
             metrics: {
               views: listing.metrics.views || 'N/A',
               growth: Math.floor(Math.random() * 60) + 20,
@@ -377,8 +378,21 @@ function App() {
       </main>
 
       <footer className="bg-gray-800 text-gray-300 mt-12 py-6">
-        <div className="max-w-7xl mx-auto px-4 text-center">
+        <div className="max-w-7xl mx-auto px-4 text-center space-y-2">
           <p>TrendMint © 2024 • Transform trends into designs</p>
+          {/* Attribution and backlink required by the Etsy API terms of use. */}
+          <p className="text-sm text-gray-400">
+            Trend data from{' '}
+            <a
+              href="https://www.etsy.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-white"
+            >
+              Etsy.com
+            </a>
+            . This application uses the Etsy API but is not endorsed or certified by Etsy, Inc.
+          </p>
         </div>
       </footer>
     </div>
