@@ -20,10 +20,34 @@ export default function TrendCard({ trend, source }) {
     >
       <div className="flex items-start justify-between mb-3">
         <h3 className="text-lg font-semibold text-gray-800 flex-1">{trend.name}</h3>
-        <span className={badgeClass}>
-          {source.toUpperCase()}
-        </span>
+        <div className="flex gap-2">
+          {trend.metrics?.classification && (
+            <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+              {trend.metrics.classification}
+            </span>
+          )}
+          <span className={badgeClass}>
+            {source.toUpperCase()}
+          </span>
+        </div>
       </div>
+
+      {/* Trend Tier + Age Info */}
+      {trend.metrics?.trendTier && (
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-xs font-semibold text-gray-700">{trend.metrics.trendTier}</span>
+          {trend.metrics.trendAge && (
+            <span className="text-xs text-gray-500">
+              • {trend.metrics.trendAge}d old
+            </span>
+          )}
+          {trend.metrics.favoriteRate && (
+            <span className="text-xs text-purple-600 font-semibold">
+              • {trend.metrics.favoriteRate} fav rate
+            </span>
+          )}
+        </div>
+      )}
 
       {trend.description && (
         <p className="text-gray-600 text-sm mb-3">{trend.description}</p>

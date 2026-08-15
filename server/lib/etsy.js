@@ -141,20 +141,30 @@ function classifyTrend(listing) {
   if (!tier) return null; // Doesn't meet minimum threshold
 
   // Calculate priority score (higher = more trending)
-  // Emphasis: Favorite rate (20%) + Recency (30%) + Views (20%) + Rating (15%) + Reviews (15%)
-  const baseScore =
-    (favoriteRate * 100) * 0.20 +  // Engagement quality
-    (ageInDays < 30 ? 100 : ageInDays < 60 ? 80 : 60) * 0.30 +  // Recency bonus
-    Math.min(views / 10, 100) * 0.20 +  // Visibility (normalized)
-    (rating / 5) * 100 * 0.15 +  // Quality
-    Math.min(reviews * 10, 100) * 0.15;  // Social proof
+  // Aligned with Etsy's engagement model:
+  // - View Momentum (30%): Recency = how fresh/new the product is
+  // - Favorite Rate (30%): Favorites/Views ratio = engagement quality
+  // - Sales/Conversion Proxy (30%): Reviews count = likely sales indicator
+  // - Review Quality (10%): Rating = customer satisfaction
 
-  const priorityScore = baseScore * recencyBoost;
+  const viewMomentumScore = (ageInDays < 30 ? 100 : ageInDays < 60 ? 80 : 60);  // Rising vs established
+  const favoriteRateScore = (favoriteRate * 100);  // How many people loved it vs viewed it
+  const conversionProxyScore = Math.min(reviews * 15, 100);  // Reviews as sales indicator (max 100 at 6+ reviews)
+  const qualityScore = (rating / 5) * 100;  // Customer satisfaction
+
+  const priorityScore =
+    (viewMomentumScore * 0.30) +      // Rising trends prioritized
+    (favoriteRateScore * 0.30) +      // High engagement wins
+    (conversionProxyScore * 0.30) +   // Proven sales/conversions
+    (qualityScore * 0.10);            // Quality matters least
+
+  // Apply recency boost for final score
+  const finalScore = priorityScore * recencyBoost;
 
   return {
     tier,
     tierName: TREND_TIERS[tier].name,
-    priorityScore,
+    priorityScore: finalScore,
     favoriteRate: (favoriteRate * 100).toFixed(2) + '%',
     ageInDays: Math.floor(ageInDays),
     classification: ageInDays < 30 ? '🔥 RISING' : '⭐ ESTABLISHED',
