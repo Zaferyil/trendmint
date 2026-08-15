@@ -1,10 +1,38 @@
 const ETSY_API_BASE = 'https://openapi.etsy.com/v3/application';
 
+// Keywords aimed at finished garments. Searching "tshirt designs" instead
+// returns digital SVG/PNG bundles, which are useless as apparel trends.
 const TRENDING_CATEGORIES = {
-  tshirts: 'tshirt designs',
+  tshirts: 'graphic tee shirt',
+  sweatshirts: 'graphic sweatshirt',
+  hoodies: 'graphic hoodie',
   'home-decor': 'home living decor',
   prints: 'art prints',
 };
+
+// Etsy mixes print-ready files in with garments; these markers only ever show
+// up on the digital ones.
+const DIGITAL_MARKERS = [
+  'svg',
+  'png',
+  'dxf',
+  'eps',
+  'clipart',
+  'clip art',
+  'digital download',
+  'instant download',
+  'digital file',
+  'cricut',
+  'silhouette',
+  'printable',
+  'sublimation design',
+  'design bundle',
+];
+
+function isDigitalListing(listing) {
+  const haystack = [listing.title, ...(listing.tags || [])].join(' ').toLowerCase();
+  return DIGITAL_MARKERS.some((marker) => haystack.includes(marker));
+}
 
 /**
  * Etsy v3 wants the keystring and the shared secret in one header, separated by
@@ -28,11 +56,14 @@ export async function getTrendingListings({ category = 'tshirts', limit = 12, ap
     return { status: 501, body: { listings: [], error: 'ETSY_API_KEY not configured on the server' } };
   }
 
+  const wanted = Math.min(Number(limit) || 12, 100);
+
   const params = new URLSearchParams({
     keywords: TRENDING_CATEGORIES[category] || category,
     sort_on: 'score',
     sort_order: 'desc',
-    limit: String(Math.min(Number(limit) || 12, 100)),
+    // Over-fetch so enough garments survive the digital-listing filter below.
+    limit: String(Math.min(wanted * 3, 100)),
   });
 
   const response = await fetch(`${ETSY_API_BASE}/listings/active?${params}`, {
@@ -49,11 +80,14 @@ export async function getTrendingListings({ category = 'tshirts', limit = 12, ap
 
   const data = await response.json();
 
-  const listings = (data.results || []).map((listing) => ({
+  const garments = (data.results || []).filter((listing) => !isDigitalListing(listing));
+
+  const listings = garments.slice(0, wanted).map((listing) => ({
     id: `etsy-${listing.listing_id}`,
     name: listing.title,
     description: listing.description?.substring(0, 100),
     url: listing.url,
+    price: listing.price ? `${listing.price.amount / listing.price.divisor} ${listing.price.currency_code}` : null,
     metrics: {
       views: listing.views || 0,
       favorites: listing.num_favorers ?? listing.favorite_count ?? 0,
