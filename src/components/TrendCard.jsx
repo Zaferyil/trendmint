@@ -38,6 +38,11 @@ export default function TrendCard({ trend, source }) {
                   👁️ {trend.metrics.views}
                 </span>
               )}
+              {trend.metrics.favorites && (
+                <span className="px-2 py-1 bg-red-50 rounded text-red-600 font-semibold">
+                  ❤️ {trend.metrics.favorites}
+                </span>
+              )}
               {trend.metrics.growth && (
                 <span className="px-2 py-1 bg-green-100 rounded text-green-700 font-semibold">
                   📈 {trend.metrics.growth}%

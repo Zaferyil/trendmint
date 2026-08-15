@@ -102,6 +102,7 @@ function App() {
             url: listing.url,
             metrics: {
               views: listing.metrics.views || 'N/A',
+              favorites: listing.metrics.favorites || 0,
               growth: Math.floor(Math.random() * 60) + 20,
             },
             tags: listing.tags,
