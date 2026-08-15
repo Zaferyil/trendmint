@@ -56,6 +56,9 @@ export async function handleApiRequest({ method, path, query, body, env }) {
         // All wearable textiles in one pass by default.
         category: query.get('category') || 'apparel',
         limit: query.get('limit') || 12,
+        // Absent means the module default; 0 means the caller asked for no
+        // ceiling, so it must survive the ?? rather than being replaced.
+        maxAgeDays: query.get('maxAgeDays') ?? undefined,
         apiKey: etsyKey,
         sharedSecret: etsySecret,
       });

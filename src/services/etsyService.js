@@ -1,11 +1,18 @@
 import { apiClient } from './api';
 
 export const etsyService = {
-  async getTrendingListings(category = 'tshirts', limit = 12) {
+  // maxAgeDays: 0 asks for no age ceiling; omitting it uses the server default.
+  async getTrendingListings(category = 'apparel', limit = 12, maxAgeDays) {
     try {
       const params = new URLSearchParams({ category, limit: String(limit) });
+      if (maxAgeDays !== undefined) params.set('maxAgeDays', String(maxAgeDays));
       const data = await apiClient.get(`/etsy-trends?${params}`);
-      return { listings: data.listings || [], success: true };
+      return {
+        listings: data.listings || [],
+        meta: data.meta,
+        note: data.note,
+        success: true,
+      };
     } catch (error) {
       console.error('Error fetching Etsy trends:', error);
       return { listings: [], success: false, error: error.message };
