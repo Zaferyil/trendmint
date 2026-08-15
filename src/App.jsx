@@ -474,10 +474,11 @@ function App() {
               selectedTrend={selectedTrend}
               onGenerateDesign={handleGenerateDesign}
               onGenerateImage={handleGenerateImage}
-              onSendToMockupMaker={handleSendToMockupMaker}
+              onSendToMockupMaker={() => handleSendToMockupMaker(design)}
               isGeneratingDesign={isGeneratingDesign}
               isGeneratingImage={isGeneratingImage}
               isDesignReady={!!design}
+              isImageReady={!!design?.imageUrl}
             />
 
             {design && (
