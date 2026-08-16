@@ -10,6 +10,8 @@ import ActionButtons from './components/ActionButtons';
 import LoginPage from './components/LoginPage';
 import ChangePassword from './components/ChangePassword';
 import UserManagement from './components/UserManagement';
+import AutomationSettings from './components/AutomationSettings';
+import SavedDesigns from './components/SavedDesigns';
 import { useAuth } from './contexts/authContext';
 import { claudeService } from './services/claudeService';
 import { mockupMakerService } from './services/mockupMakerService';
@@ -110,6 +112,7 @@ function App() {
   const { user, isLoading: isAuthLoading, logout } = useAuth();
   const [showUsers, setShowUsers] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [archiveRefresh, setArchiveRefresh] = useState(0);
   const [activeTab, setActiveTab] = useState('etsy');
   const [selectedTrend, setSelectedTrend] = useState(null);
   const [design, setDesign] = useState(null);
@@ -199,6 +202,8 @@ function App() {
   // 401 that bounces the user back to the screen they are already looking at.
   useEffect(() => {
     if (!user) return;
+    // The archive reads from our own store, not from a marketplace.
+    if (activeTab === 'archive') return;
     loadTrends(activeTab);
   }, [activeTab, loadTrends, user]);
 
@@ -373,9 +378,26 @@ function App() {
     }
   };
 
+  /**
+   * Drops a saved concept back into the editor, which is what makes the
+   * archive useful rather than a museum: artwork, export and MockupMaker all
+   * work off `design`, so a stored record only has to be put there.
+   */
+  const handleOpenDesign = (record, imageUrl) => {
+    setDesign({ ...record.design, imageUrl: imageUrl || undefined });
+    setSelectedTrend(
+      record.trendName ? { id: record.id, name: record.trendName, garment: record.garment } : null
+    );
+    setVariations([]);
+    setSelectedVariationId(null);
+    setError(null);
+    setActiveTab('etsy');
+  };
+
   const tabs = [
     { id: 'etsy', label: 'Etsy Trends', icon: '🟡' },
     { id: 'amazon', label: 'Amazon Trends', icon: '🟠' },
+    { id: 'archive', label: 'Saved Designs', icon: '📁' },
   ];
 
   return (
@@ -393,14 +415,16 @@ function App() {
       <Tabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
 
       <main className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
-        {error && (
+        {/* Trend-loading errors belong to the trend tabs; the archive reads
+            from our own store and reports its own problems inline. */}
+        {error && activeTab !== 'archive' && (
           <div className="mb-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 text-yellow-800">
             <p className="font-semibold">⚠️ Note:</p>
             <p>{error}</p>
           </div>
         )}
 
-        {isLoadingTrends && (
+        {isLoadingTrends && activeTab !== 'archive' && (
           <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-lg p-4 text-blue-800">
             <p className="flex items-center gap-2">
               <span className="animate-spin">⏳</span>
@@ -409,6 +433,12 @@ function App() {
           </div>
         )}
 
+        {activeTab === 'archive' ? (
+          <div className="space-y-6">
+            <AutomationSettings onRunFinished={() => setArchiveRefresh((count) => count + 1)} />
+            <SavedDesigns refreshToken={archiveRefresh} onOpenDesign={handleOpenDesign} />
+          </div>
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
@@ -528,6 +558,7 @@ function App() {
             )}
           </div>
         </div>
+        )}
       </main>
 
       <footer className="bg-gray-800 text-gray-300 mt-12 py-6">

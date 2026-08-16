@@ -8,24 +8,13 @@
 
 import { randomUUID } from 'node:crypto';
 import { normalizeEmail } from './auth.js';
+import { readAllJSON, readJSON, removeKey, listKeys, writeJSON } from './blobStore.js';
 
-const MEMORY_USERS = new Map();
-const MEMORY_ATTEMPTS = new Map();
+const USERS = 'users';
+const ATTEMPTS = 'login-attempts';
 
 export const MAX_LOGIN_ATTEMPTS = 5;
 export const LOCKOUT_MS = 15 * 60 * 1000;
-
-/** Netlify Blobs is only importable inside the Netlify runtime. */
-async function getStoreOrNull(name) {
-  try {
-    const { getStore } = await import('@netlify/blobs');
-    // Strong consistency matters here: a user created on one function instance
-    // has to be visible to the next login, which may land anywhere.
-    return getStore({ name, consistency: 'strong' });
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Email addresses contain characters that are awkward in a blob key, so the
@@ -38,47 +27,24 @@ function userKey(email) {
 export async function getUserByEmail(email) {
   const normalized = normalizeEmail(email);
   if (!normalized) return null;
-
-  const store = await getStoreOrNull('users');
-  if (store) return (await store.get(userKey(normalized), { type: 'json' })) || null;
-  return MEMORY_USERS.get(userKey(normalized)) || null;
+  return readJSON(USERS, userKey(normalized));
 }
 
 export async function putUser(user) {
   const record = { ...user, email: normalizeEmail(user.email) };
-  const store = await getStoreOrNull('users');
-  if (store) {
-    await store.setJSON(userKey(record.email), record);
-  } else {
-    MEMORY_USERS.set(userKey(record.email), record);
-  }
-  return record;
+  return writeJSON(USERS, userKey(record.email), record);
 }
 
 export async function deleteUserByEmail(email) {
-  const store = await getStoreOrNull('users');
-  if (store) {
-    await store.delete(userKey(email));
-    return;
-  }
-  MEMORY_USERS.delete(userKey(email));
+  await removeKey(USERS, userKey(email));
 }
 
 export async function listUsers() {
-  const store = await getStoreOrNull('users');
-  if (!store) return [...MEMORY_USERS.values()];
-
-  const { blobs } = await store.list();
-  const users = await Promise.all(blobs.map((blob) => store.get(blob.key, { type: 'json' })));
-  return users.filter(Boolean);
+  return readAllJSON(USERS);
 }
 
 export async function countUsers() {
-  const store = await getStoreOrNull('users');
-  if (!store) return MEMORY_USERS.size;
-
-  const { blobs } = await store.list();
-  return blobs.length;
+  return (await listKeys(USERS)).length;
 }
 
 export function buildUser({ email, name, role = 'user', salt, hash, createdBy = null, mustChangePassword = false }) {
@@ -106,36 +72,18 @@ export function buildUser({ email, name, role = 'user', salt, hash, createdBy = 
  * oracle against whatever password the admin chose.
  */
 export async function getAttempts(email) {
-  const key = userKey(email);
-  const store = await getStoreOrNull('login-attempts');
-  const record = store ? await store.get(key, { type: 'json' }) : MEMORY_ATTEMPTS.get(key);
-  return record || { count: 0, lockedUntil: 0 };
+  return (await readJSON(ATTEMPTS, userKey(email))) || { count: 0, lockedUntil: 0 };
 }
 
 export async function recordFailedAttempt(email) {
   const current = await getAttempts(email);
   const count = current.count + 1;
-  const record = {
+  return writeJSON(ATTEMPTS, userKey(email), {
     count,
     lockedUntil: count >= MAX_LOGIN_ATTEMPTS ? Date.now() + LOCKOUT_MS : 0,
-  };
-
-  const key = userKey(email);
-  const store = await getStoreOrNull('login-attempts');
-  if (store) {
-    await store.setJSON(key, record);
-  } else {
-    MEMORY_ATTEMPTS.set(key, record);
-  }
-  return record;
+  });
 }
 
 export async function clearAttempts(email) {
-  const key = userKey(email);
-  const store = await getStoreOrNull('login-attempts');
-  if (store) {
-    await store.delete(key);
-    return;
-  }
-  MEMORY_ATTEMPTS.delete(key);
+  await removeKey(ATTEMPTS, userKey(email));
 }

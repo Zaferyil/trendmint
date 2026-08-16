@@ -1,4 +1,5 @@
 import { handleApiRequest } from '../../server/lib/router.js';
+import { deriveAutomationKey } from '../../server/lib/automationRunner.js';
 
 /**
  * Single Netlify Function behind the /api/* redirect in netlify.toml.
@@ -38,6 +39,20 @@ export default async (request) => {
         body: JSON.stringify({ id, options: { ...options, apiKey: undefined } }),
       }).catch((error) => {
         console.error('Failed to start image job:', error);
+      });
+    },
+    // Same hand-off as the scheduled heartbeat uses: an admin pressing "Run
+    // now" gets the same 15-minute budget a scheduled run gets.
+    startAutomationRun: async ({ trigger, triggeredBy }) => {
+      await fetch(`${url.origin}/.netlify/functions/auto-run-background`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-automation-key': deriveAutomationKey(process.env) || '',
+        },
+        body: JSON.stringify({ trigger, triggeredBy }),
+      }).catch((error) => {
+        console.error('Failed to start automation run:', error);
       });
     },
   });

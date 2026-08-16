@@ -44,6 +44,44 @@ admin resets passwords instead). The first admin comes from `ADMIN_EMAIL` /
 - **Storage:** Netlify Blobs in production, in-memory locally (users you create
   against `npm run dev:api` disappear when it restarts).
 
+## Automation
+
+Trend analysis and design generation can run on a schedule with nobody looking
+at the app. Netlify fixes a cron expression at deploy time, so the schedule
+cannot live in the cron itself — `auto-run-scheduled.mjs` is a plain hourly
+heartbeat that asks the stored settings whether anything is due. At four runs a
+day, four of those twenty-four wake-ups do work and the rest return having spent
+one storage read and no API calls.
+
+The work is handed to `auto-run-background.mjs`, because a scheduled function is
+capped at 30 seconds and a run needs longer. That function is publicly
+reachable, so the hop carries a key derived from `SESSION_SECRET` — no extra
+variable to configure, and it is not interchangeable with a session signature.
+
+```
+hourly cron → auto-run-scheduled  → due?  no  → return
+                                  → due?  yes → auto-run-background (15 min)
+                                                 → Etsy trends
+                                                 → Claude design concepts
+                                                 → optional artwork
+                                                 → archive + run log
+```
+
+Settings live in the **Saved Designs** tab: on/off, runs per day (1–24), designs
+per run (1–5), trend window, and how long to keep designs. Any signed-in user
+can read them; only an admin can change them or press **Run now**.
+
+**Cost.** Every run spends real money on the Claude and OpenAI accounts, and it
+does so unattended. Automation is off by default, and artwork generation is a
+second switch that is also off — a run that only writes concepts is roughly a
+tenth the cost of one that draws them. Concepts keep their `imagePrompt`, so you
+can generate artwork later from the archive for the ones worth it. Run history
+in the same panel shows what each run actually did.
+
+Scheduled functions only fire on **published** deploys, not branch or preview
+deploys. After deploying, confirm the schedule registered under the site's
+Functions tab.
+
 ## Endpoints
 
 | Method | Path                       | Purpose                                   |
@@ -58,6 +96,13 @@ admin resets passwords instead). The first admin comes from `ADMIN_EMAIL` /
 | POST   | `/api/users/update`        | Rename, change role, enable/disable *(admin)* |
 | POST   | `/api/users/reset-password`| Set a user's password *(admin)*           |
 | POST   | `/api/users/delete`        | Delete a user *(admin)*                   |
+| GET    | `/api/automation/settings` | Schedule, run state, next run             |
+| POST   | `/api/automation/settings` | Change the schedule *(admin)*             |
+| POST   | `/api/automation/run-now`  | Start a run immediately *(admin)*         |
+| GET    | `/api/automation/runs`     | Recent run history                        |
+| GET    | `/api/designs`             | The saved-design archive                  |
+| GET    | `/api/design-image`        | Artwork for one design (`id`)             |
+| POST   | `/api/designs/delete`      | Delete a saved design *(admin)*           |
 | GET    | `/api/etsy-trends`         | Trending Etsy listings (`category`, `limit`) |
 | GET    | `/api/etsy-shop-listings`  | Active listings for a shop (`shopId`)     |
 | POST   | `/api/generate-design`     | Claude design for a trend (`trendName`)   |

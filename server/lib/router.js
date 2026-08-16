@@ -2,6 +2,7 @@ import { getTrendingListings, getShopListings, debugTrendingListings } from './e
 import { generateDesign, generateVariations } from './claude.js';
 import { createPendingJob, getJob, putJob } from './imageJobs.js';
 import { handleAuthRoute, resolveSession } from './authRoutes.js';
+import { handleAutomationRoute } from './automationRoutes.js';
 
 /**
  * Reachable without a session. Everything else needs one — the login screen is
@@ -36,7 +37,17 @@ function secret(env, name, legacyName) {
  * @param {{ method: string, path: string, query: URLSearchParams, body: any, headers: Record<string, string|undefined>, isSecure: boolean, env: Record<string, string|undefined> }} request
  * @returns {Promise<{ status: number, body: any, headers?: Record<string, string> }>}
  */
-export async function handleApiRequest({ method, path, query, body, env, headers = {}, isSecure = true, startImageJob }) {
+export async function handleApiRequest({
+  method,
+  path,
+  query,
+  body,
+  env,
+  headers = {},
+  isSecure = true,
+  startImageJob,
+  startAutomationRun,
+}) {
   const route = `${method.toUpperCase()} ${path.replace(/\/+$/, '') || '/'}`;
   const etsyKey = secret(env, 'ETSY_API_KEY', 'VITE_ETSY_API_KEY');
   const etsySecret = secret(env, 'ETSY_SHARED_SECRET', 'VITE_ETSY_SHARED_SECRET');
@@ -51,6 +62,17 @@ export async function handleApiRequest({ method, path, query, body, env, headers
 
   const authResponse = await handleAuthRoute({ route, body, env, isSecure, currentUser });
   if (authResponse) return authResponse;
+
+  // Below this point the session guard above has already run, so these
+  // handlers can assume a signed-in user.
+  const automationResponse = await handleAutomationRoute({
+    route,
+    query,
+    body,
+    currentUser,
+    startAutomationRun,
+  });
+  if (automationResponse) return automationResponse;
 
   switch (route) {
     case 'GET /health': {
