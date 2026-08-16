@@ -14,12 +14,13 @@ const SETTINGS_KEY = 'settings';
 const STATE_KEY = 'state';
 const RUNS_STORE = 'automation-runs';
 
-export const MAX_RUNS_PER_DAY = 24;
+export const MIN_INTERVAL_HOURS = 1;
+export const MAX_INTERVAL_HOURS = 24;
 export const MAX_DESIGNS_PER_RUN = 5;
 export const RUN_HISTORY_LIMIT = 50;
 
 // A heartbeat that fires a few seconds early should not push the run into the
-// next hour, which at 24 runs/day would halve the rate the user asked for.
+// next hour, which at a one-hour interval would halve the rate asked for.
 const DUE_TOLERANCE_MS = 5 * 60 * 1000;
 
 // Nothing runs for longer than the background function is allowed to live, so
@@ -31,7 +32,10 @@ export const DEFAULT_SETTINGS = {
   // Claude and OpenAI accounts, and a default-on schedule would start doing
   // that the moment this deploys.
   enabled: false,
-  runsPerDay: 2,
+  // The gap between runs, in hours. Expressed this way rather than as runs
+  // per day because a per-day count can only land on divisors of 24 — asking
+  // for a five-hour gap was simply not expressible.
+  intervalHours: 12,
   designsPerRun: 3,
   // Image generation is the expensive half, so it is opt-in on its own.
   generateImages: false,
@@ -46,11 +50,27 @@ function clampInt(value, min, max, fallback) {
   return Math.min(max, Math.max(min, Math.round(number)));
 }
 
+/**
+ * Reads the gap between runs, migrating settings saved before the control was
+ * an interval. Three runs a day was stored as runsPerDay: 3 and means an
+ * eight-hour gap, so an existing schedule survives the change untouched.
+ */
+function resolveIntervalHours(input) {
+  if (input.intervalHours != null) {
+    return clampInt(input.intervalHours, MIN_INTERVAL_HOURS, MAX_INTERVAL_HOURS, DEFAULT_SETTINGS.intervalHours);
+  }
+  if (input.runsPerDay != null) {
+    const runs = clampInt(input.runsPerDay, 1, 24, 2);
+    return clampInt(Math.round(24 / runs), MIN_INTERVAL_HOURS, MAX_INTERVAL_HOURS, DEFAULT_SETTINGS.intervalHours);
+  }
+  return DEFAULT_SETTINGS.intervalHours;
+}
+
 /** Bounds every field, so a hand-written API call cannot ask for 500 designs. */
 export function normalizeSettings(input = {}) {
   return {
     enabled: Boolean(input.enabled),
-    runsPerDay: clampInt(input.runsPerDay, 1, MAX_RUNS_PER_DAY, DEFAULT_SETTINGS.runsPerDay),
+    intervalHours: resolveIntervalHours(input),
     designsPerRun: clampInt(input.designsPerRun, 1, MAX_DESIGNS_PER_RUN, DEFAULT_SETTINGS.designsPerRun),
     generateImages: Boolean(input.generateImages),
     category: typeof input.category === 'string' && input.category.trim() ? input.category.trim() : 'apparel',
@@ -81,8 +101,8 @@ export async function saveState(state) {
   return writeJSON(STORE, STATE_KEY, state);
 }
 
-export function intervalMs(runsPerDay) {
-  return Math.floor((24 * 60 * 60 * 1000) / Math.max(1, runsPerDay));
+export function intervalMs(intervalHours) {
+  return Math.max(1, intervalHours) * 60 * 60 * 1000;
 }
 
 /**
@@ -99,7 +119,7 @@ export function isDue(settings, state, now = Date.now()) {
   if (!state.lastRunAt) return { due: true, reason: 'first run' };
 
   const elapsed = now - new Date(state.lastRunAt).getTime();
-  const target = intervalMs(settings.runsPerDay);
+  const target = intervalMs(settings.intervalHours);
   if (elapsed + DUE_TOLERANCE_MS < target) {
     const minutes = Math.ceil((target - elapsed) / 60000);
     return { due: false, reason: `next run in ~${minutes} minute(s)` };
@@ -111,7 +131,7 @@ export function isDue(settings, state, now = Date.now()) {
 export function nextRunAt(settings, state) {
   if (!settings.enabled) return null;
   if (!state.lastRunAt) return new Date().toISOString();
-  return new Date(new Date(state.lastRunAt).getTime() + intervalMs(settings.runsPerDay)).toISOString();
+  return new Date(new Date(state.lastRunAt).getTime() + intervalMs(settings.intervalHours)).toISOString();
 }
 
 export async function startRun() {

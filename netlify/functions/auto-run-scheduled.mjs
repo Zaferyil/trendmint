@@ -5,7 +5,7 @@ import { checkDue, deriveAutomationKey } from '../../server/lib/automationRunner
  *
  * A Netlify cron expression is fixed at deploy time, so it cannot carry a
  * setting the user changes from inside the app. This runs every hour instead
- * and asks the stored settings whether anything is due — "four times a day"
+ * and asks the stored settings whether anything is due — a six-hour interval
  * means four of these twenty-four wake-ups do work and the other twenty return
  * immediately, having spent one storage read and no API calls.
  *
@@ -41,7 +41,7 @@ export default async (request) => {
 };
 
 export const config = {
-  // Hourly is the resolution of the whole feature: it is the finest schedule
-  // the settings can express, and 24 runs/day is the ceiling they allow.
+  // Hourly is the resolution of the whole feature: a one-hour gap is the
+  // shortest interval the settings can ask for, so nothing finer is useful.
   schedule: '@hourly',
 };

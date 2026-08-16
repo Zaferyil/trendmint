@@ -49,9 +49,9 @@ admin resets passwords instead). The first admin comes from `ADMIN_EMAIL` /
 Trend analysis and design generation can run on a schedule with nobody looking
 at the app. Netlify fixes a cron expression at deploy time, so the schedule
 cannot live in the cron itself — `auto-run-scheduled.mjs` is a plain hourly
-heartbeat that asks the stored settings whether anything is due. At four runs a
-day, four of those twenty-four wake-ups do work and the rest return having spent
-one storage read and no API calls.
+heartbeat that asks the stored settings whether anything is due. On a six-hour
+interval, four of those twenty-four wake-ups do work and the rest return having
+spent one storage read and no API calls.
 
 The work is handed to `auto-run-background.mjs`, because a scheduled function is
 capped at 30 seconds and a run needs longer. That function is publicly
@@ -67,9 +67,12 @@ hourly cron → auto-run-scheduled  → due?  no  → return
                                                  → archive + run log
 ```
 
-Settings live in the **Saved Designs** tab: on/off, runs per day (1–24), designs
-per run (1–5), trend window, and how long to keep designs. Any signed-in user
-can read them; only an admin can change them or press **Run now**.
+Settings live in the **Saved Designs** tab: on/off, the gap between runs (1–24
+hours), designs per run (1–5), trend window, and how long to keep designs. Any
+signed-in user can read them; only an admin can change them or press **Run
+now**. The gap is stored in hours rather than as runs per day, which could only
+express divisors of 24 — a five- or seven-hour schedule was not reachable.
+Settings saved under the old field are migrated on read.
 
 **Cost.** Every run spends real money on the Claude and OpenAI accounts, and it
 does so unattended. Automation is off by default, and artwork generation is a

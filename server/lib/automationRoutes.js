@@ -7,7 +7,8 @@
 
 import {
   MAX_DESIGNS_PER_RUN,
-  MAX_RUNS_PER_DAY,
+  MAX_INTERVAL_HOURS,
+  MIN_INTERVAL_HOURS,
   getSettings,
   getState,
   listRuns,
@@ -35,7 +36,11 @@ export async function handleAutomationRoute({ route, query, body, currentUser, s
           settings,
           state,
           nextRunAt: nextRunAt(settings, state),
-          limits: { maxRunsPerDay: MAX_RUNS_PER_DAY, maxDesignsPerRun: MAX_DESIGNS_PER_RUN },
+          limits: {
+            minIntervalHours: MIN_INTERVAL_HOURS,
+            maxIntervalHours: MAX_INTERVAL_HOURS,
+            maxDesignsPerRun: MAX_DESIGNS_PER_RUN,
+          },
         },
       };
     }

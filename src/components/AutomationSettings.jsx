@@ -23,12 +23,24 @@ function formatWhen(iso) {
   return new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-/** "4 a day" is the setting; this is what it actually means in hours. */
-function describeCadence(runsPerDay) {
-  const hours = 24 / runsPerDay;
-  if (runsPerDay === 1) return 'once a day';
-  if (hours >= 1) return `every ~${hours % 1 === 0 ? hours : hours.toFixed(1)} hours`;
-  return 'every hour';
+// Every hour up to twelve, then the coarser gaps worth having. The heartbeat
+// is hourly, so anything finer than an hour is not a schedule this can keep.
+const INTERVAL_CHOICES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 18, 24];
+
+function describeInterval(hours) {
+  if (hours === 1) return 'Runs every hour.';
+  if (hours === 24) return 'Runs once a day.';
+  return `Runs every ${hours} hours.`;
+}
+
+/**
+ * An interval that does not divide 24 gives a different number of runs on
+ * different days, so this is deliberately approximate.
+ */
+function describeDailyTotal(hours, designsPerRun) {
+  const perDay = (24 / hours) * designsPerRun;
+  const rounded = Number.isInteger(perDay) ? perDay : perDay.toFixed(1);
+  return `About ${rounded} design(s) a day.`;
 }
 
 export default function AutomationSettings({ onRunFinished }) {
@@ -179,22 +191,23 @@ export default function AutomationSettings({ onRunFinished }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="runs-per-day" className="text-sm font-semibold text-gray-700 block mb-1">
-            Runs per day: <span className="text-green-600">{settings.runsPerDay}</span>
+          <label htmlFor="interval-hours" className="text-sm font-semibold text-gray-700 block mb-1">
+            Run every
           </label>
-          <input
-            id="runs-per-day"
-            type="range"
-            min={1}
-            max={24}
-            value={settings.runsPerDay}
+          <select
+            id="interval-hours"
+            value={settings.intervalHours}
             disabled={disabled}
-            onChange={(event) => setSettings({ ...settings, runsPerDay: Number(event.target.value) })}
-            onMouseUp={(event) => save({ runsPerDay: Number(event.target.value) })}
-            onTouchEnd={(event) => save({ runsPerDay: Number(event.target.value) })}
-            className="w-full accent-green-500 disabled:opacity-50"
-          />
-          <p className="text-xs text-gray-500 mt-1">Runs {describeCadence(settings.runsPerDay)}.</p>
+            onChange={(event) => save({ intervalHours: Number(event.target.value) })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100"
+          >
+            {INTERVAL_CHOICES.map((hours) => (
+              <option key={hours} value={hours}>
+                {hours === 1 ? '1 hour' : hours === 24 ? '24 hours (once a day)' : `${hours} hours`}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">{describeInterval(settings.intervalHours)}</p>
         </div>
 
         <div>
@@ -214,7 +227,7 @@ export default function AutomationSettings({ onRunFinished }) {
             className="w-full accent-green-500 disabled:opacity-50"
           />
           <p className="text-xs text-gray-500 mt-1">
-            About {settings.runsPerDay * settings.designsPerRun} design(s) a day.
+            {describeDailyTotal(settings.intervalHours, settings.designsPerRun)}
           </p>
         </div>
 
