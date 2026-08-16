@@ -11,10 +11,18 @@ export default async (request) => {
 
   let body = null;
   if (request.method === 'POST') {
-    try {
-      body = await request.json();
-    } catch {
-      return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
+    // Read as text first: a POST with no body at all is legitimate here —
+    // /auth/logout and /automation/run-now carry no arguments — and calling
+    // request.json() on an empty body throws, which used to answer those two
+    // endpoints with 400. The dev server already tolerated this, so the two
+    // runtimes disagreed and only production was broken.
+    const raw = await request.text();
+    if (raw) {
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
+      }
     }
   }
 
