@@ -56,6 +56,7 @@ export async function runAutomation({ env, trigger = 'schedule', triggeredBy = n
   let designsCreated = 0;
   let imagesCreated = 0;
   let trendsFound = 0;
+  let note = null;
 
   try {
     const trendResult = await getTrendingListings({
@@ -70,6 +71,10 @@ export async function runAutomation({ env, trigger = 'schedule', triggeredBy = n
 
     const listings = trendResult.body?.listings || [];
     trendsFound = listings.length;
+    // Etsy explains an empty result ("nothing cleared the threshold in this
+    // window, try a wider one"). Dropping that would leave a run reporting
+    // zero designs with nothing to act on.
+    note = trendResult.body?.note || null;
 
     if (!trendResult.body?.success) {
       errors.push(`Etsy: ${trendResult.body?.error || 'trend lookup failed'}`);
@@ -138,10 +143,14 @@ export async function runAutomation({ env, trigger = 'schedule', triggeredBy = n
     finishedAt: new Date().toISOString(),
     trigger,
     triggeredBy,
-    status: designsCreated > 0 ? (errors.length ? 'partial' : 'ok') : 'failed',
+    // A quiet market is not a failure. Reporting "no trends" as failed sends
+    // you looking for a broken key when the honest answer is that nothing
+    // cleared the threshold in the window you asked for.
+    status: designsCreated > 0 ? (errors.length ? 'partial' : 'ok') : errors.length ? 'failed' : 'no-trends',
     trendsFound,
     designsCreated,
     imagesCreated,
+    note,
     // Capped: a run that fails on every trend should not write an unbounded
     // error list into the log.
     errors: errors.slice(0, 10),

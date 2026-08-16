@@ -2,6 +2,22 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../contexts/authContext';
 import { automationService } from '../services/automationService';
 
+// "no trends" is a finding, not a failure: the lookup worked and the market
+// was quiet, so it reads neutral rather than red.
+const RUN_STATUS_STYLE = {
+  ok: 'text-green-600',
+  partial: 'text-amber-600',
+  'no-trends': 'text-gray-500',
+  failed: 'text-red-600',
+};
+
+const RUN_STATUS_LABEL = {
+  ok: 'ok',
+  partial: 'partial',
+  'no-trends': 'no trends',
+  failed: 'failed',
+};
+
 function formatWhen(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
@@ -26,6 +42,8 @@ export default function AutomationSettings({ onRunFinished }) {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  // { baseline, deadline } while a started run is being waited on.
+  const [watch, setWatch] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -38,14 +56,43 @@ export default function AutomationSettings({ onRunFinished }) {
       setNextRun(config.nextRunAt);
       setRuns(history.runs);
       setError(null);
+      return history.runs;
     } catch (err) {
       setError(err.message);
+      return null;
     }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  /**
+   * A run happens on a background worker with nothing reporting back, so the
+   * panel watches for the finished entry itself. Without this the only way to
+   * see the outcome is to keep pressing Refresh — and pressing it too early
+   * shows a run that has not started, which reads like a failure.
+   */
+  useEffect(() => {
+    if (!watch) return;
+
+    const timer = setInterval(async () => {
+      if (Date.now() > watch.deadline) {
+        setWatch(null);
+        setNotice('The run is taking longer than usual — press Refresh to check on it.');
+        return;
+      }
+
+      const latest = await load();
+      if (latest && latest.length > watch.baseline) {
+        setWatch(null);
+        setNotice(null);
+        if (onRunFinished) onRunFinished();
+      }
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, [watch, load, onRunFinished]);
 
   const save = async (patch) => {
     const merged = { ...settings, ...patch };
@@ -72,10 +119,10 @@ export default function AutomationSettings({ onRunFinished }) {
     setIsSaving(true);
     setError(null);
     try {
+      const baseline = runs.length;
       await automationService.runNow();
-      setNotice('Run started. It takes a minute or two — refresh the history below.');
-      await load();
-      if (onRunFinished) onRunFinished();
+      setNotice('Run started — this panel updates itself when it finishes.');
+      setWatch({ baseline, deadline: Date.now() + 5 * 60 * 1000 });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -258,22 +305,16 @@ export default function AutomationSettings({ onRunFinished }) {
           <div className="mt-3 space-y-2">
             {runs.map((run) => (
               <div key={run.id} className="flex flex-wrap items-center gap-2 text-xs border-b border-gray-100 pb-2">
-                <span
-                  className={`font-semibold ${
-                    run.status === 'ok'
-                      ? 'text-green-600'
-                      : run.status === 'partial'
-                        ? 'text-amber-600'
-                        : 'text-red-600'
-                  }`}
-                >
-                  {run.status}
+                <span className={`font-semibold ${RUN_STATUS_STYLE[run.status] || 'text-red-600'}`}>
+                  {RUN_STATUS_LABEL[run.status] || run.status}
                 </span>
                 <span className="text-gray-500">{formatWhen(run.startedAt)}</span>
                 <span className="text-gray-700">
                   {run.designsCreated} design(s), {run.imagesCreated} image(s), {run.trendsFound} trend(s)
                 </span>
                 <span className="text-gray-400">{run.trigger}</span>
+                {/* Why the run came back empty — usually "widen the window". */}
+                {run.note && <span className="text-gray-500 w-full">{run.note}</span>}
                 {run.errors?.length > 0 && (
                   <span className="text-red-600 w-full">{run.errors.join(' · ')}</span>
                 )}
