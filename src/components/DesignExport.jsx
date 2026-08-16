@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function DesignExport({ design, isExporting = false, onExport, onSendToMockupMaker }) {
+export default function DesignExport({ design, isExporting = false, onExport }) {
   const [exportFormat, setExportFormat] = useState('png');
   const [productColor, setProductColor] = useState('black');
 
@@ -96,14 +96,6 @@ export default function DesignExport({ design, isExporting = false, onExport, on
             ) : (
               <span>📥 Download {exportFormat.toUpperCase()}</span>
             )}
-          </button>
-
-          <button
-            onClick={() => onSendToMockupMaker && onSendToMockupMaker(design, productColor)}
-            disabled={isExporting}
-            className="w-full py-3 px-4 rounded-lg font-semibold text-white bg-purple-500 hover:bg-purple-600 transition-all disabled:bg-gray-400"
-          >
-            <span>🖼️ Send to MockupMaker (Preview on T-Shirt)</span>
           </button>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
