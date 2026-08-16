@@ -397,7 +397,9 @@ function App() {
   const tabs = [
     { id: 'etsy', label: 'Etsy Trends', icon: '🟡' },
     { id: 'amazon', label: 'Amazon Trends', icon: '🟠' },
-    { id: 'archive', label: 'Saved Designs', icon: '📁' },
+    // Named for the automation panel that heads the tab, not for the archive
+    // list beneath it — the schedule is what people come to this tab to set.
+    { id: 'archive', label: 'Start Automation', icon: '🤖' },
   ];
 
   return (
