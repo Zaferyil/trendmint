@@ -13,6 +13,7 @@ export default function SavedDesigns({ refreshToken, onOpenDesign }) {
   const [images, setImages] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -54,6 +55,32 @@ export default function SavedDesigns({ refreshToken, onOpenDesign }) {
       cancelled = true;
     };
   }, [designs, images]);
+
+  /**
+   * Saves the PNG straight from the archive, without going through the editor
+   * first. The artwork may not be in `images` yet — thumbnails load one at a
+   * time — so it is fetched on demand when it is missing.
+   */
+  const handleDownload = async (record) => {
+    setDownloadingId(record.id);
+    try {
+      const imageUrl = images[record.id] || (await automationService.getDesignImage(record.id)).imageUrl;
+      const blob = await (await fetch(imageUrl)).blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = `${record.design?.name || 'trendmint-design'}.png`.replace(/\s+/g, '-').toLowerCase();
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      setError(`Could not download: ${err.message}`);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const handleDelete = async (record) => {
     if (!window.confirm(`Delete "${record.design?.name || 'this design'}"?`)) return;
@@ -156,6 +183,18 @@ export default function SavedDesigns({ refreshToken, onOpenDesign }) {
                   >
                     Open
                   </button>
+                  {/* Only where there is artwork to save — a concept has
+                      nothing to put in a PNG. */}
+                  {record.hasImage && (
+                    <button
+                      onClick={() => handleDownload(record)}
+                      disabled={downloadingId === record.id}
+                      title="Download PNG"
+                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 transition-all"
+                    >
+                      {downloadingId === record.id ? '⏳' : '📥 PNG'}
+                    </button>
+                  )}
                   {user?.role === 'admin' && (
                     <button
                       onClick={() => handleDelete(record)}
