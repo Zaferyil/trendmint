@@ -7,6 +7,10 @@ import DesignPreview from './components/DesignPreview';
 import DesignVariations from './components/DesignVariations';
 import DesignExport from './components/DesignExport';
 import ActionButtons from './components/ActionButtons';
+import LoginPage from './components/LoginPage';
+import ChangePassword from './components/ChangePassword';
+import UserManagement from './components/UserManagement';
+import { useAuth } from './contexts/authContext';
 import { claudeService } from './services/claudeService';
 import { mockupMakerService } from './services/mockupMakerService';
 import { etsyService } from './services/etsyService';
@@ -103,6 +107,9 @@ const TIME_WINDOWS = [
 ];
 
 function App() {
+  const { user, isLoading: isAuthLoading, logout } = useAuth();
+  const [showUsers, setShowUsers] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [activeTab, setActiveTab] = useState('etsy');
   const [selectedTrend, setSelectedTrend] = useState(null);
   const [design, setDesign] = useState(null);
@@ -188,9 +195,32 @@ function App() {
     }
   }, [maxAgeDays]);
 
+  // Gated on the session: firing this on the login screen would only produce a
+  // 401 that bounces the user back to the screen they are already looking at.
   useEffect(() => {
+    if (!user) return;
     loadTrends(activeTab);
-  }, [activeTab, loadTrends]);
+  }, [activeTab, loadTrends, user]);
+
+  // Every hook above runs unconditionally; the gate goes here so the screens
+  // below never change how many hooks App calls.
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500 flex items-center gap-2">
+          <span className="animate-spin">⏳</span> Loading...
+        </p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  if (user.mustChangePassword) {
+    return <ChangePassword forced />;
+  }
 
   const handleTrendSelect = (trend) => {
     setSelectedTrend(trend);
@@ -350,7 +380,15 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      <Header
+        user={user}
+        onManageUsers={() => setShowUsers(true)}
+        onChangePassword={() => setShowChangePassword(true)}
+        onSignOut={logout}
+      />
+
+      {showUsers && user.role === 'admin' && <UserManagement onClose={() => setShowUsers(false)} />}
+      {showChangePassword && <ChangePassword onClose={() => setShowChangePassword(false)} />}
 
       <Tabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
 

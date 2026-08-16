@@ -22,6 +22,10 @@ export default async (request) => {
     path,
     query: url.searchParams,
     body,
+    // The session cookie rides in here; without the headers the router cannot
+    // tell an authenticated request from an anonymous one.
+    headers: Object.fromEntries(request.headers),
+    isSecure: url.protocol === 'https:',
     env: process.env,
     // Kick off the long-running work and return. Awaiting the fetch only waits
     // for Netlify to accept the invocation (202), not for the image itself.
@@ -40,6 +44,6 @@ export default async (request) => {
 
   return Response.json(result.body, {
     status: result.status,
-    headers: { 'cache-control': 'no-store' },
+    headers: { 'cache-control': 'no-store', ...(result.headers || {}) },
   });
 };

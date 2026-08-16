@@ -1,6 +1,19 @@
 import { getTrendingListings, getShopListings, debugTrendingListings } from './etsy.js';
 import { generateDesign, generateVariations } from './claude.js';
 import { createPendingJob, getJob, putJob } from './imageJobs.js';
+import { handleAuthRoute, resolveSession } from './authRoutes.js';
+
+/**
+ * Reachable without a session. Everything else needs one — the login screen is
+ * only a real gate if the API behind it is closed too, otherwise anyone who
+ * knows the endpoint can still spend the Claude and OpenAI budget.
+ */
+const PUBLIC_ROUTES = new Set([
+  'GET /health',
+  'GET /auth/me',
+  'POST /auth/login',
+  'POST /auth/logout',
+]);
 
 /**
  * Reads a server-side secret, falling back to the legacy VITE_-prefixed name so
@@ -20,18 +33,31 @@ function secret(env, name, legacyName) {
  * local dev server. Everything here runs server-side: API keys never reach
  * the browser and there is no cross-origin request from the frontend.
  *
- * @param {{ method: string, path: string, query: URLSearchParams, body: any, env: Record<string, string|undefined> }} request
- * @returns {Promise<{ status: number, body: any }>}
+ * @param {{ method: string, path: string, query: URLSearchParams, body: any, headers: Record<string, string|undefined>, isSecure: boolean, env: Record<string, string|undefined> }} request
+ * @returns {Promise<{ status: number, body: any, headers?: Record<string, string> }>}
  */
-export async function handleApiRequest({ method, path, query, body, env, startImageJob }) {
+export async function handleApiRequest({ method, path, query, body, env, headers = {}, isSecure = true, startImageJob }) {
   const route = `${method.toUpperCase()} ${path.replace(/\/+$/, '') || '/'}`;
   const etsyKey = secret(env, 'ETSY_API_KEY', 'VITE_ETSY_API_KEY');
   const etsySecret = secret(env, 'ETSY_SHARED_SECRET', 'VITE_ETSY_SHARED_SECRET');
   const claudeKey = secret(env, 'ANTHROPIC_API_KEY', 'VITE_CLAUDE_API_KEY');
   const openaiKey = secret(env, 'OPENAI_API_KEY', 'VITE_OPENAI_API_KEY');
 
+  const currentUser = await resolveSession({ headers, env });
+
+  if (!currentUser && !PUBLIC_ROUTES.has(route)) {
+    return { status: 401, body: { error: 'Not signed in' } };
+  }
+
+  const authResponse = await handleAuthRoute({ route, body, env, isSecure, currentUser });
+  if (authResponse) return authResponse;
+
   switch (route) {
-    case 'GET /health':
+    case 'GET /health': {
+      // Unauthenticated callers get liveness only. Which keys a deploy carries
+      // is deployment detail, and it is the signed-in operator who needs it.
+      if (!currentUser) return { status: 200, body: { ok: true } };
+
       return {
         status: 200,
         body: {
@@ -40,6 +66,7 @@ export async function handleApiRequest({ method, path, query, body, env, startIm
           etsySharedSecretConfigured: Boolean(etsySecret),
           claudeConfigured: Boolean(claudeKey),
           openaiConfigured: Boolean(openaiKey),
+          authConfigured: Boolean(env.SESSION_SECRET || env.AUTH_SECRET),
           // Which variable name each key came from — handy when a deploy still
           // carries the legacy VITE_ names.
           etsySource: env.ETSY_API_KEY ? 'ETSY_API_KEY' : env.VITE_ETSY_API_KEY ? 'VITE_ETSY_API_KEY' : null,
@@ -50,6 +77,7 @@ export async function handleApiRequest({ method, path, query, body, env, startIm
               : null,
         },
       };
+    }
 
     case 'GET /etsy-trends':
       return getTrendingListings({

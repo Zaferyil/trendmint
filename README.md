@@ -23,11 +23,41 @@ The routing logic lives in `server/lib/router.js` and is shared by both runtimes
 - **Local development:** `server/dev-server.js`, a dependency-free Node server on
   port 3001 that Vite proxies to (see `vite.config.js`).
 
+## Authentication
+
+The app is closed: the UI shows a sign-in screen, and every endpoint except
+`/api/health` and the auth routes returns `401` without a session. Gating only
+the UI would leave the API — and the Claude/OpenAI spend behind it — open to
+anyone who knows the URL.
+
+Accounts are created by an admin from inside the app; there is no public
+sign-up and no password-reset email (there is no mail service wired up, so an
+admin resets passwords instead). The first admin comes from `ADMIN_EMAIL` /
+`ADMIN_PASSWORD` and is created only while the user store is empty.
+
+- **Passwords:** scrypt with a per-user random salt, via `node:crypto`.
+- **Sessions:** an HMAC-signed, `HttpOnly` + `SameSite=Strict` cookie, so page
+  script cannot read it. Each request re-checks it against the stored user, so
+  disabling an account or changing a password takes effect immediately rather
+  than whenever the cookie happens to expire.
+- **Throttling:** five failed sign-ins lock an address for 15 minutes.
+- **Storage:** Netlify Blobs in production, in-memory locally (users you create
+  against `npm run dev:api` disappear when it restarts).
+
 ## Endpoints
 
 | Method | Path                       | Purpose                                   |
 | ------ | -------------------------- | ----------------------------------------- |
-| GET    | `/api/health`              | Reports which keys are configured         |
+| GET    | `/api/health`              | Liveness; key details once signed in      |
+| POST   | `/api/auth/login`          | Sign in, sets the session cookie          |
+| POST   | `/api/auth/logout`         | Clears the session cookie                 |
+| GET    | `/api/auth/me`             | The signed-in user, or `null`             |
+| POST   | `/api/auth/change-password`| Change your own password                  |
+| GET    | `/api/users`               | List users *(admin)*                      |
+| POST   | `/api/users`               | Create a user *(admin)*                   |
+| POST   | `/api/users/update`        | Rename, change role, enable/disable *(admin)* |
+| POST   | `/api/users/reset-password`| Set a user's password *(admin)*           |
+| POST   | `/api/users/delete`        | Delete a user *(admin)*                   |
 | GET    | `/api/etsy-trends`         | Trending Etsy listings (`category`, `limit`) |
 | GET    | `/api/etsy-shop-listings`  | Active listings for a shop (`shopId`)     |
 | POST   | `/api/generate-design`     | Claude design for a trend (`trendName`)   |
@@ -58,6 +88,10 @@ Netlify picks up `netlify.toml` automatically (build `npm run build`, publish
 
 - `ETSY_API_KEY`
 - `ANTHROPIC_API_KEY`
+- `SESSION_SECRET` — required, or sign-in returns `503`. Generate with
+  `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` — the first admin, seeded only while no users
+  exist. Sign in, change the password when prompted, then remove both.
 - `CLAUDE_MODEL` *(optional, defaults to `claude-sonnet-5`)*
 
 Never give these a `VITE_` prefix — that prefix is what publishes a value to the
