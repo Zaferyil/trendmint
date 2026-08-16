@@ -486,7 +486,6 @@ function App() {
                 design={design}
                 isExporting={isExportingDesign}
                 onExport={handleExportDesign}
-                onSendToMockupMaker={handleSendToMockupMaker}
               />
             )}
           </div>
