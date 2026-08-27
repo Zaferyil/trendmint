@@ -31,7 +31,7 @@ function withFraming(prompt) {
   );
 }
 
-export async function generateImage({ prompt, apiKey, model = DEFAULT_MODEL, size = '1024x1024', quality = 'standard' }) {
+export async function generateImage({ prompt, apiKey, model = DEFAULT_MODEL, size = '1024x1024', quality = 'medium' }) {
   if (!apiKey) {
     return { status: 501, body: { success: false, error: 'OPENAI_API_KEY not configured on the server' } };
   }
