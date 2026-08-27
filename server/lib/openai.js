@@ -11,7 +11,7 @@ const DEFAULT_MODEL = 'gpt-image-1';
 // Netlify's synchronous functions time out at ~10s, so the default leans on the
 // fastest settings. Raise via OPENAI_IMAGE_QUALITY once a longer timeout is
 // available on the plan.
-export async function generateImage({ prompt, apiKey, model = DEFAULT_MODEL, size = '1024x1024', quality = 'low' }) {
+export async function generateImage({ prompt, apiKey, model = DEFAULT_MODEL, size = '1024x1024', quality = 'standard' }) {
   if (!apiKey) {
     return { status: 501, body: { success: false, error: 'OPENAI_API_KEY not configured on the server' } };
   }
