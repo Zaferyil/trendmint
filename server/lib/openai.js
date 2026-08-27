@@ -11,6 +11,26 @@ const DEFAULT_MODEL = 'gpt-image-1';
 // Netlify's synchronous functions time out at ~10s, so the default leans on the
 // fastest settings. Raise via OPENAI_IMAGE_QUALITY once a longer timeout is
 // available on the plan.
+/**
+ * What every image has to satisfy, whatever the concept asked for.
+ *
+ * Left to itself the model composes right up to the canvas edge and clips its
+ * own artwork — arched lettering across the top loses its ascenders that way,
+ * which is the "design is cut off at the top" the archive kept showing. The
+ * concept prompt comes from Claude and says nothing about framing, so the
+ * requirement is stated here instead of hoping each generated prompt includes
+ * it.
+ */
+function withFraming(prompt) {
+  return (
+    `${prompt}\n\n` +
+    'Composition requirements: place the complete design within the frame with a clear ' +
+    'margin on all four sides. Nothing may touch or extend beyond the edges — no cropped ' +
+    'letters, no clipped artwork, no bleed. Centre the artwork and leave the surrounding ' +
+    'area empty.'
+  );
+}
+
 export async function generateImage({ prompt, apiKey, model = DEFAULT_MODEL, size = '1024x1024', quality = 'standard' }) {
   if (!apiKey) {
     return { status: 501, body: { success: false, error: 'OPENAI_API_KEY not configured on the server' } };
@@ -23,7 +43,7 @@ export async function generateImage({ prompt, apiKey, model = DEFAULT_MODEL, siz
 
   const payload = {
     model,
-    prompt,
+    prompt: withFraming(prompt),
     n: 1,
     size,
     ...(isGptImage

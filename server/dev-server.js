@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { handleApiRequest } from './lib/router.js';
 import { runImageJob } from './lib/imageJobs.js';
+import { runAutomation } from './lib/automationRunner.js';
 
 const PORT = Number(process.env.API_PORT) || 3001;
 
@@ -44,12 +45,27 @@ const server = createServer(async (req, res) => {
       path,
       query: url.searchParams,
       body,
+      headers: req.headers,
+      // Local dev is plain HTTP, and a Secure cookie would never be stored —
+      // which would make every login here silently fail.
+      isSecure: false,
       env: process.env,
       // No function timeout locally, so the job is finished before the client
       // is told about it. Its first poll then returns the image immediately.
       startImageJob: runImageJob,
+      // Deliberately not awaited: a run takes minutes, and holding the response
+      // open for it would just time out the browser.
+      startAutomationRun: ({ trigger, triggeredBy }) => {
+        runAutomation({ env: process.env, trigger, triggeredBy }).catch((error) => {
+          console.error('Automation run failed:', error);
+        });
+      },
     });
-    res.writeHead(result.status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    res.writeHead(result.status, {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+      ...(result.headers || {}),
+    });
     res.end(JSON.stringify(result.body));
   } catch (error) {
     console.error('API error:', error);
