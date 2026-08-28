@@ -252,8 +252,15 @@ async function fetchOneKeyword({ keyword, sortOn, limit, credential }) {
  * what sells, created finds what is new.
  */
 async function fetchListings({ category, limit, credential, customKeyword }) {
-  // If a custom keyword is provided, use it. Otherwise use the category-based keywords.
-  const keywords = customKeyword ? [customKeyword] : (TRENDING_CATEGORIES[category] || [category]);
+  // If a custom keyword is provided, combine it with the category keywords (e.g. "halloween" + "graphic tee shirt" = "halloween graphic tee shirt").
+  // This ensures custom searches stay within the graphic apparel category instead of matching any product with that keyword.
+  let keywords;
+  if (customKeyword) {
+    const categoryKeywords = TRENDING_CATEGORIES[category] || [category];
+    keywords = categoryKeywords.map((k) => `${customKeyword} ${k}`);
+  } else {
+    keywords = TRENDING_CATEGORIES[category] || [category];
+  }
   // Over-fetch: the digital filter and the trend filter both discard rows.
   const perKeyword = Math.min(Math.ceil(limit * 3), 100);
 
