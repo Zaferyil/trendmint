@@ -502,7 +502,13 @@ function App() {
             <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-                  {activeTab === 'etsy' ? '🟡 Etsy Trends' : '🟠 Amazon Trends'}
+                  {activeTab === 'etsy'
+                    ? '🟡 Etsy Trends'
+                    : activeTab === 'bestsellers'
+                      ? '🏆 Bestsellers'
+                      : activeTab === 'popular'
+                        ? '⭐ Popular'
+                        : '🟠 Amazon Trends'}
                 </h2>
                 {isLoadingTrends && <span className="animate-spin text-2xl">⏳</span>}
               </div>
@@ -518,7 +524,7 @@ function App() {
                   {isLoadingTrends ? '⏳ Analyzing...' : '🔄 Run Trend Analysis'}
                 </button>
 
-                {activeTab === 'etsy' && (
+                {(activeTab === 'etsy' || activeTab === 'bestsellers' || activeTab === 'popular') && (
                   <div className="flex items-center gap-1">
                     {TIME_WINDOWS.map((window) => (
                       <button
@@ -537,7 +543,7 @@ function App() {
                   </div>
                 )}
 
-                {activeTab === 'etsy' && lastAnalyzedAt && (
+                {(activeTab === 'etsy' || activeTab === 'bestsellers' || activeTab === 'popular') && lastAnalyzedAt && (
                   <span className="text-xs text-gray-500">
                     Last analysis: {lastAnalyzedAt.toLocaleTimeString('en-GB')}
                     {isLiveData ? ' • live Etsy data' : ' • demo data'}
