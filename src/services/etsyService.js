@@ -19,6 +19,40 @@ export const etsyService = {
     }
   },
 
+  async getBestsellerListings(category = 'apparel', limit = 12, maxAgeDays) {
+    try {
+      const params = new URLSearchParams({ category, limit: String(limit) });
+      if (maxAgeDays !== undefined) params.set('maxAgeDays', String(maxAgeDays));
+      const data = await apiClient.get(`/etsy-bestsellers?${params}`);
+      return {
+        listings: data.listings || [],
+        meta: data.meta,
+        note: data.note,
+        success: true,
+      };
+    } catch (error) {
+      console.error('Error fetching Etsy bestsellers:', error);
+      return { listings: [], success: false, error: error.message };
+    }
+  },
+
+  async getPopularListings(category = 'apparel', limit = 12, maxAgeDays) {
+    try {
+      const params = new URLSearchParams({ category, limit: String(limit) });
+      if (maxAgeDays !== undefined) params.set('maxAgeDays', String(maxAgeDays));
+      const data = await apiClient.get(`/etsy-popular?${params}`);
+      return {
+        listings: data.listings || [],
+        meta: data.meta,
+        note: data.note,
+        success: true,
+      };
+    } catch (error) {
+      console.error('Error fetching Etsy popular:', error);
+      return { listings: [], success: false, error: error.message };
+    }
+  },
+
   async getShopListings(shopId) {
     try {
       const params = new URLSearchParams({ shopId });

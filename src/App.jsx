@@ -131,8 +131,10 @@ function App() {
   const [imageWaitSeconds, setImageWaitSeconds] = useState(0);
   const [etsyTrends, setEtsyTrends] = useState(MOCK_ETSY_TRENDS);
   const [amazonTrends, setAmazonTrends] = useState(MOCK_AMAZON_TRENDS);
+  const [bestsellerTrends, setBestsellerTrends] = useState([]);
+  const [popularTrends, setPopularTrends] = useState([]);
 
-  const currentTrends = activeTab === 'etsy' ? etsyTrends : amazonTrends;
+  const currentTrends = activeTab === 'etsy' ? etsyTrends : activeTab === 'amazon' ? amazonTrends : activeTab === 'bestsellers' ? bestsellerTrends : popularTrends;
 
   const loadTrends = useCallback(async (tabType) => {
     setIsLoadingTrends(true);
@@ -188,6 +190,56 @@ function App() {
           setAmazonTrends(formattedTrends);
         } else {
           setAmazonTrends(MOCK_AMAZON_TRENDS);
+        }
+      } else if (tabType === 'bestsellers') {
+        const result = await etsyService.getBestsellerListings('apparel', 12, maxAgeDays);
+        if (result.success && result.listings.length > 0) {
+          const formattedTrends = result.listings.map((listing) => ({
+            id: listing.id,
+            name: listing.name,
+            description: listing.description,
+            url: listing.url,
+            garment: listing.garment,
+            metrics: listing.metrics,
+            tags: listing.tags,
+          }));
+          setBestsellerTrends(formattedTrends);
+          setIsLiveData(true);
+          setLastAnalyzedAt(new Date());
+        } else if (result.success) {
+          setBestsellerTrends([]);
+          setIsLiveData(true);
+          setLastAnalyzedAt(new Date());
+          setAnalysisNote(result.note || 'No bestsellers found in this time window.');
+        } else {
+          setIsLiveData(false);
+          setBestsellerTrends([]);
+          setError(`Bestsellers: ${result.error}`);
+        }
+      } else if (tabType === 'popular') {
+        const result = await etsyService.getPopularListings('apparel', 12, maxAgeDays);
+        if (result.success && result.listings.length > 0) {
+          const formattedTrends = result.listings.map((listing) => ({
+            id: listing.id,
+            name: listing.name,
+            description: listing.description,
+            url: listing.url,
+            garment: listing.garment,
+            metrics: listing.metrics,
+            tags: listing.tags,
+          }));
+          setPopularTrends(formattedTrends);
+          setIsLiveData(true);
+          setLastAnalyzedAt(new Date());
+        } else if (result.success) {
+          setPopularTrends([]);
+          setIsLiveData(true);
+          setLastAnalyzedAt(new Date());
+          setAnalysisNote(result.note || 'No popular items found in this time window.');
+        } else {
+          setIsLiveData(false);
+          setPopularTrends([]);
+          setError(`Popular: ${result.error}`);
         }
       }
     } catch (err) {
@@ -396,6 +448,8 @@ function App() {
 
   const tabs = [
     { id: 'etsy', label: 'Etsy Trends', icon: '🟡' },
+    { id: 'bestsellers', label: 'Bestsellers', icon: '🏆' },
+    { id: 'popular', label: 'Popular', icon: '⭐' },
     { id: 'amazon', label: 'Amazon Trends', icon: '🟠' },
     // Named for the automation panel that heads the tab, not for the archive
     // list beneath it — the schedule is what people come to this tab to set.

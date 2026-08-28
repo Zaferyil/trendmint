@@ -1,4 +1,4 @@
-import { getTrendingListings, getShopListings, debugTrendingListings } from './etsy.js';
+import { getTrendingListings, getShopListings, debugTrendingListings, getBestsellerListings, getPopularListings } from './etsy.js';
 import { generateDesign, generateVariations } from './claude.js';
 import { createPendingJob, getJob, putJob } from './imageJobs.js';
 import { handleAuthRoute, resolveSession } from './authRoutes.js';
@@ -127,6 +127,24 @@ export async function handleApiRequest({
         return { status: 400, body: { error: 'shopId is required' } };
       }
       return getShopListings({ shopId: query.get('shopId'), apiKey: etsyKey, sharedSecret: etsySecret });
+
+    case 'GET /etsy-bestsellers':
+      return getBestsellerListings({
+        category: query.get('category') || 'apparel',
+        limit: query.get('limit') || 12,
+        maxAgeDays: query.get('maxAgeDays') ?? undefined,
+        apiKey: etsyKey,
+        sharedSecret: etsySecret,
+      });
+
+    case 'GET /etsy-popular':
+      return getPopularListings({
+        category: query.get('category') || 'apparel',
+        limit: query.get('limit') || 12,
+        maxAgeDays: query.get('maxAgeDays') ?? undefined,
+        apiKey: etsyKey,
+        sharedSecret: etsySecret,
+      });
 
     case 'POST /generate-design':
       return generateDesign({
