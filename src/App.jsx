@@ -133,6 +133,8 @@ function App() {
   const [amazonTrends, setAmazonTrends] = useState(MOCK_AMAZON_TRENDS);
   const [bestsellerTrends, setBestsellerTrends] = useState([]);
   const [popularTrends, setPopularTrends] = useState([]);
+  const [bestsellerKeyword, setBestsellerKeyword] = useState('');
+  const [popularKeyword, setPopularKeyword] = useState('');
 
   const currentTrends = activeTab === 'etsy' ? etsyTrends : activeTab === 'amazon' ? amazonTrends : activeTab === 'bestsellers' ? bestsellerTrends : popularTrends;
 
@@ -192,7 +194,7 @@ function App() {
           setAmazonTrends(MOCK_AMAZON_TRENDS);
         }
       } else if (tabType === 'bestsellers') {
-        const result = await etsyService.getBestsellerListings('apparel', 12, maxAgeDays);
+        const result = await etsyService.getBestsellerListings('apparel', 12, maxAgeDays, bestsellerKeyword);
         if (result.success && result.listings.length > 0) {
           const formattedTrends = result.listings.map((listing) => ({
             id: listing.id,
@@ -217,7 +219,7 @@ function App() {
           setError(`Bestsellers: ${result.error}`);
         }
       } else if (tabType === 'popular') {
-        const result = await etsyService.getPopularListings('apparel', 12, maxAgeDays);
+        const result = await etsyService.getPopularListings('apparel', 12, maxAgeDays, popularKeyword);
         if (result.success && result.listings.length > 0) {
           const formattedTrends = result.listings.map((listing) => ({
             id: listing.id,
@@ -248,7 +250,7 @@ function App() {
     } finally {
       setIsLoadingTrends(false);
     }
-  }, [maxAgeDays]);
+  }, [maxAgeDays, bestsellerKeyword, popularKeyword]);
 
   // Gated on the session: firing this on the login screen would only produce a
   // 401 that bounces the user back to the screen they are already looking at.
@@ -540,6 +542,44 @@ function App() {
                     Last analysis: {lastAnalyzedAt.toLocaleTimeString('en-GB')}
                     {isLiveData ? ' • live Etsy data' : ' • demo data'}
                   </span>
+                )}
+
+                {activeTab === 'bestsellers' && (
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      placeholder="e.g. halloween, vintage, retro..."
+                      value={bestsellerKeyword}
+                      onChange={(e) => setBestsellerKeyword(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      onClick={() => loadTrends('bestsellers')}
+                      disabled={isLoadingTrends}
+                      className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 transition-all"
+                    >
+                      Search
+                    </button>
+                  </div>
+                )}
+
+                {activeTab === 'popular' && (
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      placeholder="e.g. halloween, vintage, retro..."
+                      value={popularKeyword}
+                      onChange={(e) => setPopularKeyword(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:border-blue-500"
+                    />
+                    <button
+                      onClick={() => loadTrends('popular')}
+                      disabled={isLoadingTrends}
+                      className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 transition-all"
+                    >
+                      Search
+                    </button>
+                  </div>
                 )}
               </div>
 

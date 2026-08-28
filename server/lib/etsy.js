@@ -251,8 +251,9 @@ async function fetchOneKeyword({ keyword, sortOn, limit, credential }) {
  * window is actually about. Neither ordering alone is enough — score finds
  * what sells, created finds what is new.
  */
-async function fetchListings({ category, limit, credential }) {
-  const keywords = TRENDING_CATEGORIES[category] || [category];
+async function fetchListings({ category, limit, credential, customKeyword }) {
+  // If a custom keyword is provided, use it. Otherwise use the category-based keywords.
+  const keywords = customKeyword ? [customKeyword] : (TRENDING_CATEGORIES[category] || [category]);
   // Over-fetch: the digital filter and the trend filter both discard rows.
   const perKeyword = Math.min(Math.ceil(limit * 3), 100);
 
@@ -497,6 +498,7 @@ export async function getBestsellerListings({
   maxAgeDays = DEFAULT_MAX_AGE_DAYS,
   apiKey,
   sharedSecret,
+  keyword,
 }) {
   const credential = buildApiKeyHeader(apiKey, sharedSecret);
 
@@ -510,6 +512,7 @@ export async function getBestsellerListings({
     category,
     limit: wanted,
     credential,
+    customKeyword: keyword,
   });
 
   if (error) {
@@ -587,6 +590,7 @@ export async function getPopularListings({
   maxAgeDays = DEFAULT_MAX_AGE_DAYS,
   apiKey,
   sharedSecret,
+  keyword,
 }) {
   const credential = buildApiKeyHeader(apiKey, sharedSecret);
 
@@ -600,6 +604,7 @@ export async function getPopularListings({
     category,
     limit: wanted,
     credential,
+    customKeyword: keyword,
   });
 
   if (error) {

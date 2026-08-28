@@ -19,10 +19,11 @@ export const etsyService = {
     }
   },
 
-  async getBestsellerListings(category = 'apparel', limit = 12, maxAgeDays) {
+  async getBestsellerListings(category = 'apparel', limit = 12, maxAgeDays, keyword) {
     try {
       const params = new URLSearchParams({ category, limit: String(limit) });
       if (maxAgeDays !== undefined) params.set('maxAgeDays', String(maxAgeDays));
+      if (keyword) params.set('keyword', keyword);
       const data = await apiClient.get(`/etsy-bestsellers?${params}`);
       return {
         listings: data.listings || [],
@@ -36,10 +37,11 @@ export const etsyService = {
     }
   },
 
-  async getPopularListings(category = 'apparel', limit = 12, maxAgeDays) {
+  async getPopularListings(category = 'apparel', limit = 12, maxAgeDays, keyword) {
     try {
       const params = new URLSearchParams({ category, limit: String(limit) });
       if (maxAgeDays !== undefined) params.set('maxAgeDays', String(maxAgeDays));
+      if (keyword) params.set('keyword', keyword);
       const data = await apiClient.get(`/etsy-popular?${params}`);
       return {
         listings: data.listings || [],
