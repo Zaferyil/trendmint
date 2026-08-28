@@ -540,22 +540,26 @@ export async function getBestsellerListings({
     return age === null || age <= ageLimit;
   });
 
-  // Sort by review count (primary), rating (secondary), and views (tertiary).
-  // High review count = many sales. High rating = quality. High views = interest.
+  // Sort by Etsy's bestseller algorithm:
+  // 1. Review count (sales performance) - PRIMARY ⭐⭐⭐⭐⭐
+  // 2. Views/day (momentum/recent sales velocity) - SECONDARY ⭐⭐⭐⭐⭐
+  // 3. Rating (quality) - TERTIARY ⭐⭐⭐
   const sortedByQuality = withinWindow
     .map((listing) => ({
       listing,
       metrics: readMetrics(listing),
     }))
     .sort((a, b) => {
+      // Primary: Review count = sales performance
       const reviewDiff = Number(b.metrics.reviews) - Number(a.metrics.reviews);
       if (reviewDiff !== 0) return reviewDiff;
 
-      const ratingDiff = Number(b.metrics.rating) - Number(a.metrics.rating);
-      if (ratingDiff !== 0) return ratingDiff;
+      // Secondary: Views/day = recent momentum/velocity
+      const viewsPerDayDiff = Number(b.metrics.viewsPerDay) - Number(a.metrics.viewsPerDay);
+      if (viewsPerDayDiff > 0.1 || viewsPerDayDiff < -0.1) return viewsPerDayDiff;
 
-      // If reviews and rating are similar, use views as tiebreaker
-      return Number(b.metrics.views) - Number(a.metrics.views);
+      // Tertiary: Rating = quality/customer satisfaction
+      return Number(b.metrics.rating) - Number(a.metrics.rating);
     });
 
   const listings = sortedByQuality
