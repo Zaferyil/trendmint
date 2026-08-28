@@ -100,7 +100,7 @@ export default function TrendCard({ trend, source }) {
           onClick={(event) => event.stopPropagation()}
           className="inline-block mt-3 text-sm text-blue-600 hover:text-blue-800 underline"
         >
-          View on {source === 'etsy' ? 'Etsy' : 'Amazon'} ↗
+          View on {(source === 'etsy' || source === 'bestsellers' || source === 'popular') ? 'Etsy' : 'Amazon'} ↗
         </a>
       )}
 
