@@ -486,3 +486,187 @@ export async function getShopListings({ shopId, apiKey, sharedSecret }) {
   const data = await response.json();
   return { status: 200, body: { listings: data.results || [], success: true } };
 }
+
+/**
+ * Bestsellers: proven popular products ranked by review count and rating.
+ * These are products that have been consistently selling well over time.
+ */
+export async function getBestsellerListings({
+  category = 'apparel',
+  limit = 12,
+  maxAgeDays = DEFAULT_MAX_AGE_DAYS,
+  apiKey,
+  sharedSecret,
+}) {
+  const credential = buildApiKeyHeader(apiKey, sharedSecret);
+
+  if (!credential) {
+    return { status: 501, body: { listings: [], error: 'ETSY_API_KEY not configured on the server' } };
+  }
+
+  const wanted = Math.min(Number(limit) || 12, 100);
+  const ageLimit = Number(maxAgeDays) > 0 ? Number(maxAgeDays) : Infinity;
+  const { results, error, keywordsUsed, failedQueries } = await fetchListings({
+    category,
+    limit: wanted,
+    credential,
+  });
+
+  if (error) {
+    return {
+      status: error.status,
+      body: { listings: [], error: `Etsy API error (${error.status})`, detail: error.detail },
+    };
+  }
+
+  const garments = results.filter((listing) => !isDigitalListing(listing));
+  const withinWindow = garments.filter((listing) => {
+    const age = getAgeInDays(listing);
+    return age === null || age <= ageLimit;
+  });
+
+  // Sort by review count (primary) and rating (secondary)
+  const sortedByQuality = withinWindow
+    .map((listing) => ({
+      listing,
+      metrics: readMetrics(listing),
+    }))
+    .sort((a, b) => {
+      const reviewDiff = Number(b.metrics.reviews) - Number(a.metrics.reviews);
+      if (reviewDiff !== 0) return reviewDiff;
+      return Number(b.metrics.rating) - Number(a.metrics.rating);
+    });
+
+  const listings = sortedByQuality
+    .slice(0, wanted)
+    .map(({ listing, metrics }) => ({
+      id: `etsy-${listing.listing_id}`,
+      name: listing.title,
+      description: listing.description?.substring(0, 100),
+      url: listing.url,
+      garment: detectGarment(listing),
+      price: listing.price
+        ? `${listing.price.amount / listing.price.divisor} ${listing.price.currency_code}`
+        : null,
+      metrics: {
+        views: metrics.views,
+        favorites: metrics.favorites,
+        reviews: metrics.reviews,
+        rating: metrics.rating,
+        trendTier: '🏆 Bestseller',
+        trendAge: getAgeInDays(listing),
+      },
+      tags: listing.tags || [],
+    }));
+
+  return {
+    status: 200,
+    body: {
+      listings,
+      success: true,
+      note: listings.length === 0 ? 'No bestsellers found in this time window.' : undefined,
+      meta: {
+        mode: 'bestsellers',
+        keywords: keywordsUsed,
+        failedQueries,
+        maxAgeDays: ageLimit === Infinity ? null : ageLimit,
+        fetched: results.length,
+        analyzedAt: new Date().toISOString(),
+      },
+    },
+  };
+}
+
+/**
+ * Popular: trending products ranked by views and recency.
+ * These are products gaining momentum recently.
+ */
+export async function getPopularListings({
+  category = 'apparel',
+  limit = 12,
+  maxAgeDays = DEFAULT_MAX_AGE_DAYS,
+  apiKey,
+  sharedSecret,
+}) {
+  const credential = buildApiKeyHeader(apiKey, sharedSecret);
+
+  if (!credential) {
+    return { status: 501, body: { listings: [], error: 'ETSY_API_KEY not configured on the server' } };
+  }
+
+  const wanted = Math.min(Number(limit) || 12, 100);
+  const ageLimit = Number(maxAgeDays) > 0 ? Number(maxAgeDays) : Infinity;
+  const { results, error, keywordsUsed, failedQueries } = await fetchListings({
+    category,
+    limit: wanted,
+    credential,
+  });
+
+  if (error) {
+    return {
+      status: error.status,
+      body: { listings: [], error: `Etsy API error (${error.status})`, detail: error.detail },
+    };
+  }
+
+  const garments = results.filter((listing) => !isDigitalListing(listing));
+  const withinWindow = garments.filter((listing) => {
+    const age = getAgeInDays(listing);
+    return age === null || age <= ageLimit;
+  });
+
+  // Sort by views/day (primary) and recency (secondary)
+  const sortedByPopularity = withinWindow
+    .map((listing) => ({
+      listing,
+      metrics: readMetrics(listing),
+    }))
+    .sort((a, b) => {
+      const viewsDiff = Number(b.metrics.viewsPerDay) - Number(a.metrics.viewsPerDay);
+      if (viewsDiff > 0.1 || viewsDiff < -0.1) return viewsDiff;
+      // If views/day are similar, prefer newer listings
+      const ageA = getAgeInDays(a.listing) ?? 999;
+      const ageB = getAgeInDays(b.listing) ?? 999;
+      return ageA - ageB;
+    });
+
+  const listings = sortedByPopularity
+    .slice(0, wanted)
+    .map(({ listing, metrics }) => ({
+      id: `etsy-${listing.listing_id}`,
+      name: listing.title,
+      description: listing.description?.substring(0, 100),
+      url: listing.url,
+      garment: detectGarment(listing),
+      price: listing.price
+        ? `${listing.price.amount / listing.price.divisor} ${listing.price.currency_code}`
+        : null,
+      metrics: {
+        views: metrics.views,
+        favorites: metrics.favorites,
+        reviews: metrics.reviews,
+        rating: metrics.rating,
+        viewsPerDay: metrics.viewsPerDay,
+        trendTier: '⭐ Popular',
+        trendAge: getAgeInDays(listing),
+      },
+      tags: listing.tags || [],
+    }));
+
+  return {
+    status: 200,
+    body: {
+      listings,
+      success: true,
+      note: listings.length === 0 ? 'No popular items found in this time window.' : undefined,
+      meta: {
+        mode: 'popular',
+        keywords: keywordsUsed,
+        failedQueries,
+        maxAgeDays: ageLimit === Infinity ? null : ageLimit,
+        fetched: results.length,
+        analyzedAt: new Date().toISOString(),
+      },
+    },
+  };
+}
