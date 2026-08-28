@@ -489,7 +489,8 @@ export async function getShopListings({ shopId, apiKey, sharedSecret }) {
 }
 
 /**
- * Bestsellers: proven popular products ranked by review count and rating.
+ * Bestsellers: proven popular products ranked by sales indicators.
+ * Algorithm: review count (sales proxy) → rating (quality) → views (interest).
  * These are products that have been consistently selling well over time.
  */
 export async function getBestsellerListings({
@@ -528,7 +529,8 @@ export async function getBestsellerListings({
     return age === null || age <= ageLimit;
   });
 
-  // Sort by review count (primary) and rating (secondary)
+  // Sort by review count (primary), rating (secondary), and views (tertiary).
+  // High review count = many sales. High rating = quality. High views = interest.
   const sortedByQuality = withinWindow
     .map((listing) => ({
       listing,
@@ -537,7 +539,12 @@ export async function getBestsellerListings({
     .sort((a, b) => {
       const reviewDiff = Number(b.metrics.reviews) - Number(a.metrics.reviews);
       if (reviewDiff !== 0) return reviewDiff;
-      return Number(b.metrics.rating) - Number(a.metrics.rating);
+
+      const ratingDiff = Number(b.metrics.rating) - Number(a.metrics.rating);
+      if (ratingDiff !== 0) return ratingDiff;
+
+      // If reviews and rating are similar, use views as tiebreaker
+      return Number(b.metrics.views) - Number(a.metrics.views);
     });
 
   const listings = sortedByQuality
