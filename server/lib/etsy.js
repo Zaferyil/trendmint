@@ -272,7 +272,8 @@ async function fetchListings({ category, limit, credential, customKeyword }) {
       const response = await fetchOneKeyword({ keyword, sortOn, limit: perKeyword, credential });
       responses.push(response);
       // Add delay between requests to avoid Etsy API rate limiting (429 errors)
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      // 500ms delay ensures we don't hit rate limits even with multiple keywords
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
 
