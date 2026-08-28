@@ -133,6 +133,7 @@ export async function handleApiRequest({
         category: query.get('category') || 'apparel',
         limit: query.get('limit') || 12,
         maxAgeDays: query.get('maxAgeDays') ?? undefined,
+        keyword: query.get('keyword') || undefined,
         apiKey: etsyKey,
         sharedSecret: etsySecret,
       });
@@ -142,6 +143,7 @@ export async function handleApiRequest({
         category: query.get('category') || 'apparel',
         limit: query.get('limit') || 12,
         maxAgeDays: query.get('maxAgeDays') ?? undefined,
+        keyword: query.get('keyword') || undefined,
         apiKey: etsyKey,
         sharedSecret: etsySecret,
       });
