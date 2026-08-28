@@ -252,14 +252,13 @@ async function fetchOneKeyword({ keyword, sortOn, limit, credential }) {
  * what sells, created finds what is new.
  */
 async function fetchListings({ category, limit, credential, customKeyword }) {
-  // If a custom keyword is provided, combine it with just the t-shirt keyword (not all apparel).
-  // This ensures custom searches match only graphic tees, not hoodies/sweatshirts.
-  // Example: "halloween" + "graphic tee shirt" = "halloween graphic tee shirt".
+  // If a custom keyword is provided, combine it with all apparel category keywords.
+  // This ensures custom searches return graphic t-shirts, sweatshirts, AND hoodies.
+  // Example: "halloween" + ["graphic tee shirt", "graphic sweatshirt", "graphic hoodie"]
   let keywords;
   if (customKeyword) {
-    // Use only the first apparel keyword (graphic tee shirt) for custom searches
-    const baseKeyword = APPAREL_KEYWORDS[0] || 'graphic tee shirt';
-    keywords = [`${customKeyword} ${baseKeyword}`];
+    const categoryKeywords = TRENDING_CATEGORIES[category] || APPAREL_KEYWORDS;
+    keywords = categoryKeywords.map((k) => `${customKeyword} ${k}`);
   } else {
     keywords = TRENDING_CATEGORIES[category] || [category];
   }
