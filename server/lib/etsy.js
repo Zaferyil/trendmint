@@ -243,7 +243,8 @@ async function fetchOneKeyword({ keyword, sortOn, limit, credential }) {
 
 /**
  * Runs every keyword against two orderings and merges the results,
- * de-duplicated by listing id.
+ * de-duplicated by listing id. Uses sequential requests with delays to avoid
+ * hitting Etsy API rate limits.
  *
  * `score` alone cannot answer a short window: Etsy ranks established sellers
  * highly, so that pool is dominated by listings years old and a 7-day filter
@@ -265,14 +266,16 @@ async function fetchListings({ category, limit, credential, customKeyword }) {
   // Over-fetch: the digital filter and the trend filter both discard rows.
   const perKeyword = Math.min(Math.ceil(limit * 3), 100);
 
-  const requests = [];
+  const responses = [];
   for (const keyword of keywords) {
     for (const sortOn of ['score', 'created']) {
-      requests.push(fetchOneKeyword({ keyword, sortOn, limit: perKeyword, credential }));
+      const response = await fetchOneKeyword({ keyword, sortOn, limit: perKeyword, credential });
+      responses.push(response);
+      // Add delay between requests to avoid Etsy API rate limiting (429 errors)
+      // 500ms delay ensures we don't hit rate limits even with multiple keywords
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
-
-  const responses = await Promise.all(requests);
 
   const failures = responses.filter((r) => r.error);
   // Only a total failure is fatal; a partial one still yields a usable list.
