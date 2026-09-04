@@ -486,7 +486,7 @@ function App() {
           <div className="mb-6 bg-blue-50 border-2 border-blue-200 rounded-lg p-4 text-blue-800">
             <p className="flex items-center gap-2">
               <span className="animate-spin">⏳</span>
-              <span>Loading {activeTab === 'etsy' ? 'Etsy' : 'Amazon'} trends...</span>
+              <span>Loading {(activeTab === 'etsy' || activeTab === 'bestsellers' || activeTab === 'popular') ? 'Etsy' : 'Amazon'} trends...</span>
             </p>
           </div>
         )}
@@ -525,13 +525,13 @@ function App() {
                 </button>
 
                 {(activeTab === 'etsy' || activeTab === 'bestsellers' || activeTab === 'popular') && (
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-2">
                     {TIME_WINDOWS.map((window) => (
                       <button
                         key={window.days}
                         onClick={() => setMaxAgeDays(window.days)}
                         disabled={isLoadingTrends}
-                        className={`px-3 py-2 rounded-md text-xs font-semibold transition-all disabled:opacity-50 ${
+                        className={`px-2 sm:px-3 py-1 sm:py-2 rounded-md text-xs sm:text-sm font-semibold transition-all disabled:opacity-50 whitespace-nowrap ${
                           maxAgeDays === window.days
                             ? 'bg-gray-800 text-white'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -551,7 +551,7 @@ function App() {
                 )}
 
                 {activeTab === 'bestsellers' && (
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center w-full sm:w-auto">
                     <input
                       type="text"
                       placeholder="e.g. halloween, vintage, retro..."
@@ -562,7 +562,7 @@ function App() {
                     <button
                       onClick={() => loadTrends('bestsellers')}
                       disabled={isLoadingTrends}
-                      className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 transition-all"
+                      className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 transition-all whitespace-nowrap"
                     >
                       Search
                     </button>
@@ -570,7 +570,7 @@ function App() {
                 )}
 
                 {activeTab === 'popular' && (
-                  <div className="flex gap-2 items-center">
+                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center w-full sm:w-auto">
                     <input
                       type="text"
                       placeholder="e.g. halloween, vintage, retro..."
@@ -581,7 +581,7 @@ function App() {
                     <button
                       onClick={() => loadTrends('popular')}
                       disabled={isLoadingTrends}
-                      className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 transition-all"
+                      className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 transition-all whitespace-nowrap"
                     >
                       Search
                     </button>
