@@ -125,7 +125,8 @@ export default function Settings() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="de">🇩🇪 Deutsch (Österreich)</option>
-              <option value="en">🇬🇧 English</option>
+              <option value="en">🇬🇧 English (United States)</option>
+              <option value="tr">🇹🇷 Türkçe (Türkiye)</option>
             </select>
           </div>
         </div>
