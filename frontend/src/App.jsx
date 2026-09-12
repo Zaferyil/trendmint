@@ -4,6 +4,7 @@ import CampaignPlanner from './components/CampaignPlanner'
 import ContentLibrary from './components/ContentLibrary'
 import Analytics from './components/Analytics'
 import Settings from './components/Settings'
+import InstallPrompt from './components/InstallPrompt'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('planner')
@@ -57,6 +58,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      <InstallPrompt />
       {/* Header */}
       <header className="bg-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
