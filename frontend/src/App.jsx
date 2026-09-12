@@ -29,7 +29,7 @@ export default function App() {
         id: Date.now() + i,
         type: campaignData.postTypes[typeIndex],
         time: campaignData.selectedTimes[timeIndex],
-        content: `Beispiel-Inhalt für Mental Aritmetik Post ${i + 1}\n\n🧠 Trainiere dein Gehirn mit SirkWTime!\n\n#MentalAritmetik #BrainTraining #Österreich #SirkWTime`,
+        content: `Beispiel-Inhalt für Mental Arithmetik Post ${i + 1}\n\n🧠 Trainiere dein Gehirn mit SirkWTime!\n\n#MentalArithmetik #BrainTraining #Österreich #SirkWTime`,
         status: campaignData.scheduleMode === 'now' ? 'posted' : 'scheduled',
         createdAt: new Date().toISOString(),
         metrics: {

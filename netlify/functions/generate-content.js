@@ -36,7 +36,7 @@ export const handler = async (event) => {
     );
 
     const prompt = `Du bist ein Instagram Content Manager für SirkWTime (Österreich).
-Hauptfokus: Mental Aritmetik (${contentFocus}%)
+Hauptfokus: Mental Arithmetik (${contentFocus}%)
 Sekundär: Brain Fit Kids Bundle Promotion (${100 - contentFocus}%)
 
 Zielmarkt: Österreich

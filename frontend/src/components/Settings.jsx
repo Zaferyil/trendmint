@@ -97,7 +97,7 @@ export default function Settings() {
             <div className="space-y-3">
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-700">Mental Aritmetik</span>
+                  <span className="text-sm text-gray-700">Mental Arithmetik</span>
                   <span className="font-bold text-primary">{settings.contentFocus}%</span>
                 </div>
                 <input
