@@ -309,43 +309,51 @@ def lp(x, a):  # one-pole lowpass
     return y
 
 def music():
-    n = int(SR * DUR); t = np.arange(n) / SR; out = np.zeros(n)
-    bpm = 100; beat = 60 / bpm
-    m2f = lambda m: 440 * 2 ** ((m - 69) / 12)
-    prog = [[57, 60, 64, 69], [53, 57, 60, 65], [48, 52, 55, 60], [55, 59, 62, 67]]  # Am F C G
-    bar = 4 * beat
-    pad = np.zeros(n)
-    for b in range(int(DUR / bar) + 1):
-        i0 = int(b * bar * SR); i1 = min(n, int((b + 1) * bar * SR) + int(0.3 * SR))
-        if i0 >= n: break
-        tt = np.arange(i1 - i0) / SR; env = np.minimum(1, tt / 0.4) * np.minimum(1, (i1 - i0) / SR - tt + 0.05) ** 0.3
-        for m in prog[b % 4]:
-            for det in (-0.08, 0.0, 0.08):
-                f = m2f(m + det)
-                pad[i0:i1] += env * (2 * ((tt * f) % 1) - 1) * 0.018
-        f = m2f(prog[b % 4][0] - 24)
-        out[i0:i1] += 0.22 * np.sin(2 * np.pi * f * tt) * np.minimum(1, tt / 0.05)
-    # cheap lowpass on pad via FFT
-    P = np.fft.rfft(pad); fr = np.fft.rfftfreq(n, 1 / SR); P *= 1 / (1 + (fr / 1800) ** 4); out += np.fft.irfft(P, n)
-    nb = int(DUR / beat)
+    """Happy kids track: C-major, 124 BPM, ukulele strums, glockenspiel melody, claps, bouncy bass."""
+    n = int(SR * DUR); out = np.zeros(n); rng = np.random.default_rng(1)
+    beat = 60 / 124; m2f = lambda m: 440 * 2 ** ((m - 69) / 12)
+    prog = [[60, 64, 67], [67, 71, 74], [69, 72, 76], [65, 69, 72]]  # C G Am F
+    mel = [76, 79, 81, 79, 76, 74, 72, 74, 76, 76, 74, 72, 74, 79, 76, None,
+           72, 74, 76, 79, 81, 79, 76, 74, 72, 74, 76, 74, 72, None, 72, None]
+    def add(i, sig):
+        L = min(len(sig), n - i)
+        if L > 0: out[i:i + L] += sig[:L]
+    def pluck(f, d, a):  # Karplus-Strong ukulele
+        N = max(2, int(SR / f)); buf = rng.uniform(-1, 1, N); L = int(d * SR); y = np.empty(L)
+        for k in range(L):
+            y[k] = buf[k % N]; buf[k % N] = 0.996 * 0.5 * (buf[k % N] + buf[(k + 1) % N])
+        return a * y
+    cache = {}
+    def uke(m):
+        if m not in cache: cache[m] = pluck(m2f(m), 0.5, 0.11)
+        return cache[m]
+    def glock(f, a=0.13):
+        s = np.arange(int(0.7 * SR)) / SR
+        return a * (np.sin(2 * np.pi * f * s) + 0.35 * np.sin(2 * np.pi * f * 2.76 * s)) * np.exp(-s * 5)
+    clap_s = np.arange(int(0.12 * SR)) / SR
+    clap = 0.18 * rng.standard_normal(len(clap_s)) * (np.exp(-clap_s * 40) + 0.5 * np.exp(-(clap_s - 0.012).clip(0) * 60) * (clap_s > 0.012))
+    nb = int(DUR / beat) + 1
     for b in range(nb):
-        st = b * beat; i0 = int(st * SR)
-        if 1.4 <= st < 27.6:
-            L = min(n - i0, int(0.35 * SR)); s = np.arange(L) / SR
-            out[i0:i0 + L] += 0.55 * np.sin(2 * np.pi * (45 + 110 * np.exp(-s * 35)) * s) * np.exp(-s * 9)
-            if b % 2 == 1:
-                L = min(n - i0, int(0.2 * SR)); s = np.arange(L) / SR
-                nz = np.random.randn(L); nz = np.diff(np.concatenate([[0], nz]))
-                out[i0:i0 + L] += 0.12 * nz * np.exp(-s * 18) + 0.15 * np.sin(2 * np.pi * 190 * s) * np.exp(-s * 25)
-            for h in (0.5,):
-                j = i0 + int(h * beat * SR); L = min(n - j, int(0.04 * SR))
-                if L > 0: out[j:j + L] += 0.05 * np.diff(np.concatenate([[0], np.random.randn(L)])) * np.exp(-np.arange(L) / SR * 90)
-        # plucky arp (premium bell)
-        if 6.2 <= st < 27.6:
-            ch = prog[(b // 4) % 4]
-            for q in range(2):
-                m = ch[(b * 2 + q) % 4] + 12; j = i0 + int(q * beat / 2 * SR); L = min(n - j, int(0.6 * SR)); s = np.arange(L) / SR
-                out[j:j + L] += 0.045 * np.exp(-s * 6) * (np.sin(2 * np.pi * m2f(m) * s) + 0.3 * np.sin(2 * np.pi * m2f(m) * 3.01 * s))
+        st = b * beat; i0 = int(st * SR); ch = prog[(b // 4) % 4]
+        # ukulele: down-up strum on every half beat
+        for h in (0, 0.5):
+            j = i0 + int(h * beat * SR)
+            for q, m in enumerate(ch + [ch[0] + 12]):
+                add(j + int(q * 0.008 * SR), uke(m) * (1.0 if h == 0 else 0.6))
+        # bouncy bass
+        s = np.arange(int(0.25 * SR)) / SR; f = m2f(ch[0] - 24 + (7 if b % 2 else 0))
+        add(i0, 0.25 * np.sin(2 * np.pi * f * s) * np.exp(-s * 8))
+        if st >= 1.4:
+            s = np.arange(int(0.25 * SR)) / SR
+            add(i0, 0.45 * np.sin(2 * np.pi * (50 + 100 * np.exp(-s * 35)) * s) * np.exp(-s * 12))
+            if b % 2 == 1: add(i0, clap)
+            sh = 0.03 * rng.standard_normal(int(0.04 * SR)) * np.exp(-np.arange(int(0.04 * SR)) / SR * 70)
+            add(i0 + int(0.5 * beat * SR), sh)
+        # glockenspiel melody (half-beat notes) from 6 s on
+        if 6.2 <= st < 27.5:
+            for h in range(2):
+                m = mel[(b * 2 + h) % len(mel)]
+                if m: add(i0 + int(h * beat / 2 * SR), glock(m2f(m + 12)))
     return out
 
 def sfx(n):
@@ -401,12 +409,17 @@ if __name__ == "__main__":
     build_audio()
     mp4 = os.path.join(OUT, "BrainFitKids_Reel_Premium_9x16.mp4")
     previews = [int(x * FPS) for x in (0.9, 4.6, 12.5, 16.5, 21.5, 23.5, 27.0)]
+    if "--audio-only" in sys.argv:
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, "-i", os.path.join(OUT, "mix.wav"), "-map", "0:v",
+                        "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "256k", "-t", str(DUR), "-movflags", "+faststart",
+                        mp4.replace(".mp4", "_happy.mp4")], check=True)
+        sys.exit()
     if "--preview" in sys.argv:
         for n in previews: frame(n).save(os.path.join(OUT, f"pv_{n:03d}.jpg"), quality=75)
         sys.exit()
     p = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
                           "-r", str(FPS), "-i", "-", "-i", os.path.join(OUT, "mix.wav"), "-c:v", "libx264", "-preset", "slow",
-                          "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "256k", "-t", str(DUR),
+                          "-crf", "23", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "256k", "-t", str(DUR),
                           "-movflags", "+faststart", mp4], stdin=subprocess.PIPE)
     for n in range(int(DUR * FPS)):
         p.stdin.write(frame(n).tobytes())
