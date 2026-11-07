@@ -29,3 +29,6 @@ dist-ssr
 
 # Netlify
 .netlify
+reels/brainfitkids/out/audio.wav
+reels/brainfitkids/out/preview_*
+reels/brainfitkids/contact.jpg
