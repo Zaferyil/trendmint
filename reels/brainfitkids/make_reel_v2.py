@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 ASSETS, VO, OUT = sys.argv[1:4]
 os.makedirs(OUT, exist_ok=True)
 W, H, FPS, DUR, SR = 1080, 1920, 30, 29.0, 44100
-VO_OFFSET = 1.2
+VO_OFFSET = 1.0
 FD = "/usr/share/fonts/opentype/inter/"
 GOLD, GOLD2, CREAM, WHITE = (255, 200, 60), (255, 236, 160), (255, 246, 225), (255, 255, 255)
 NAVY, INK, GREEN, ROSE = (10, 22, 52), (6, 12, 30), (37, 211, 102), (255, 92, 130)
@@ -164,119 +164,136 @@ def card(canvas, img, sh, cx, cy, t, a, scale=1.0, rot=0.0):
         im = im.rotate(rot, Image.BICUBIC, expand=True); shi = shi.rotate(rot, Image.BICUBIC, expand=True)
     put(canvas, shi, cx, cy + 30, a); put(canvas, im, cx, cy, a)
 
-# ---------- scenes ----------
-def s_intro(c, t):  # 0 – 1.4
-    p = eo(t / 0.9)
+# ---------- scenes (VO v3, offset 1.0 s) ----------
+LOGO_IMG = Image.open(os.path.join(ASSETS, "logo.png")).convert("RGBA")
+def logo(canvas, cx, cy, s=1.0, a=1.0, width=760):
+    w = max(1, int(width * s)); im = LOGO_IMG.resize((w, int(LOGO_IMG.height * w / LOGO_IMG.width)), Image.LANCZOS)
+    gl = Image.new("RGBA", (im.width + 200, im.height + 200)); gl.paste(im, (100, 100), im)
+    gl = gl.filter(ImageFilter.GaussianBlur(30)); al = gl.getchannel("A").point(lambda v: int(v * 0.5)); gl.putalpha(al)
+    put(canvas, gl, cx, cy, a); put(canvas, im, cx, cy, a)
+
+def s_intro(c, t):  # 0 – 1.0
     ov = Image.new("RGBA", c.size); d = ImageDraw.Draw(ov)
-    for i in range(3):  # expanding gold rings
-        r = 80 + 900 * eo((t - i * 0.12) / 1.2)
-        d.ellipse((W / 2 - r, 820 - r, W / 2 + r, 820 + r), outline=GOLD + (int(120 * (1 - cl(t / 1.3))),), width=4)
+    for i in range(3):
+        r = 80 + 900 * eo((t - i * 0.1) / 1.0)
+        d.ellipse((W / 2 - r, 900 - r, W / 2 + r, 900 + r), outline=GOLD + (int(130 * (1 - cl(t / 1.0))),), width=5)
     c.alpha_composite(ov)
-    logo(c, W / 2, 930, 0.8 + 0.2 * bk(t / 0.7), p)
-    light_sweep(c, t - 0.5, 820, 1060)
-    put(c, solid_text("MENTAL ARITHMETIK · SOROBAN", 34, CREAM, "SemiBold"), W / 2, 1130, eo((t - 0.5) / 0.5))
+    logo(c, W / 2, 900, 0.6 + 0.4 * bk(t / 0.6), eo(t / 0.3), 900)
+    light_sweep(c, t - 0.35, 700, 1100, 0.6)
 
-def s_hook(c, t):  # 1.4 – 6.2  "Stell dir vor: Dein Kind rechnet schneller als ein Taschenrechner – ganz im Kopf!"
-    a = win(t, 0, 4.8, 0.4, 0.35)
-    card(c, KIDS_R, SH_KIDS, W / 2, 1250, t, a, 0.98 + 0.03 * t / 4.8)
-    put(c, solid_text("Stell dir vor …", 54, CREAM, "SemiBold"), W / 2, 300, a * eo(t / 0.4))
-    word_reveal(c, ["Dein", "Kind", "rechnet"], W / 2, 400, t, 0.6, 0.12, 92, [WHITE, WHITE, WHITE])
-    word_reveal(c, ["schneller", "als"], W / 2, 510, t, 1.0, 0.12, 92, ["gold", WHITE])
-    word_reveal(c, ["ein", "Taschenrechner"], W / 2, 620, t, 1.4, 0.12, 92, [WHITE, "gold"])
-    if t > 2.6:  # "ganz im Kopf!" stamp
-        p = bk((t - 2.6) / 0.4)
-        pill(c, "– ganz im Kopf!", W / 2, 1680, 64, ROSE, WHITE, a * cl((t - 2.6) / 0.15), )
-    # flying equation
-    if t > 0.6:
-        pe = eo((t - 0.6) / 0.5); s = "37 + 48 = 85" if t > 2.6 else "37 + 48 = ?"
-        im = gold_text(s, 80) if t > 2.6 else solid_text(s, 80, WHITE)
-        glass(c, (W / 2 - 330, 730, W / 2 + 330, 850), 60, int(40 * pe * a))
-        put(c, im, W / 2, 790, pe * a)
+def s_hook(c, t):  # 1.0 – 4.6  "Mach dein Kind fit für Mathe – mit BrainFit Kids!"
+    a = win(t, 0, 3.6, 0.3, 0.3)
+    word_reveal(c, ["Mach", "dein", "Kind"], W / 2, 230, t, 0.0, 0.12, 100, [WHITE, WHITE, WHITE])
+    word_reveal(c, ["fit", "für"], W / 2, 350, t, 0.4, 0.12, 120, ["gold", WHITE])
+    put(c, gold_text("MATHE!", 210), W / 2, 580, a * eo((t - 0.8) / 0.3), scale=0.7 + 0.3 * bk((t - 0.8) / 0.45))
+    card(c, KIDS_R, SH_KIDS, W / 2, 1060, t, a * eo((t - 0.3) / 0.5), 0.96 + 0.04 * t / 3.6)
+    if t > 1.85:
+        put(c, solid_text("mit", 50, CREAM, "SemiBold"), W / 2, 1420, a * eo((t - 1.85) / 0.3))
+        logo(c, W / 2, 1620, 0.7 + 0.3 * bk((t - 1.9) / 0.5), a * eo((t - 1.9) / 0.25), 620)
 
-BENEFITS = [("Konzentration", 1.6), ("Gedächtnis", 3.0), ("Selbstvertrauen", 4.6)]
-def s_benefits(c, t):  # 6.2 – 13.8  "Mit Mental Arithmetik und dem Soroban stärken Kinder von 4–12 ..."
-    a = win(t, 0, 7.6, 0.45, 0.4)
-    card(c, BOY_R, SH_BOY, 760 + 60 * (1 - eo(t / 0.6)), 760, t, a, 1.0, -3)
-    put(c, solid_text("Mental Arithmetik", 74, WHITE), 60, 230, a * eo(t / 0.4), center=False, dy=30 * (1 - eo(t / 0.4)))
-    put(c, gold_text("& Soroban", 74), 60, 320, a * eo((t - 0.2) / 0.4), center=False)
-    pill(c, "für Kinder von 4 – 12 Jahren", 300, 470, 34, GOLD, INK, a * eo((t - 0.6) / 0.4))
+def s_potential(c, t):  # 4.6 – 7.3  "Jedes Kind hat unglaubliches Potenzial."
+    a = win(t, 0, 2.7, 0.3, 0.3)
+    card(c, BOY_R, SH_BOY, W / 2, 1230, t, a * eo(t / 0.5), 1.0 + 0.04 * t / 2.7, 2)
+    word_reveal(c, ["Jedes", "Kind", "hat"], W / 2, 240, t, 0.0, 0.12, 96, [WHITE, WHITE, WHITE])
+    put(c, gold_text("unglaubliches", 118), W / 2, 450, a * eo((t - 0.6) / 0.35), scale=0.8 + 0.2 * bk((t - 0.6) / 0.45))
+    put(c, gold_text("Potenzial", 150), W / 2, 600, a * eo((t - 0.9) / 0.35), scale=0.8 + 0.2 * bk((t - 0.9) / 0.45))
+    light_sweep(c, t - 1.3, 380, 700, 0.8)
+
+BENEFITS = [("Konzentration", 0.4), ("Gedächtnis", 1.3), ("Mathematisches Denken", 2.2)]
+def s_benefits(c, t):  # 7.3 – 14.4
+    a = win(t, 0, 7.1, 0.35, 0.35)
+    put(c, solid_text("Wir fördern", 90, WHITE), W / 2, 260, a * eo(t / 0.35), dy=30 * (1 - eo(t / 0.35)))
     for k, (name, st) in enumerate(BENEFITS):
-        p = eo((t - st) / 0.5)
+        p = eo((t - st) / 0.45)
         if p <= 0: continue
-        y = 1240 + k * 170; x0 = 70 - 500 * (1 - p)
+        y = 400 + k * 170; x0 = 70 - 500 * (1 - p)
         glass(c, (x0, y, x0 + 940, y + 140), 70, int(60 * p * a), (255, 210, 100, int(120 * p * a)))
         ov = Image.new("RGBA", c.size); d = ImageDraw.Draw(ov)
         d.ellipse((x0 + 22, y + 22, x0 + 118, y + 118), fill=GOLD + (int(255 * p * a),))
         d.line([(x0 + 48, y + 72), (x0 + 64, y + 90), (x0 + 94, y + 52)], fill=INK + (int(255 * p * a),), width=12, joint="curve")
         c.alpha_composite(ov)
-        put(c, solid_text(name, 64, WHITE), x0 + 150, y + 30, p * a, center=False)
+        put(c, solid_text(name, 58 if len(name) > 15 else 64, WHITE), x0 + 150, y + 34, p * a, center=False)
         if 0 < t - st < 0.7: light_sweep(c, t - st, y, y + 140, 0.7)
-    put(c, solid_text("stärkt", 40, CREAM, "SemiBold"), 70, 1170, a * eo((t - 1.3) / 0.4), center=False)
+    # "für mehr Selbstvertrauen und bessere Leistungen in der Schule" (~3.8s)
+    pf = eo((t - 3.7) / 0.4)
+    if pf > 0:
+        put(c, ABAC_R, W / 2, 1080, a * pf, dy=40 * (1 - pf))
+        put(c, solid_text("für mehr", 56, CREAM, "SemiBold"), W / 2, 1300, a * pf)
+        put(c, gold_text("Selbstvertrauen", 110), W / 2, 1420, a * eo((t - 4.0) / 0.35), scale=0.8 + 0.2 * bk((t - 4.0) / 0.45))
+        pill(c, "+ bessere Leistungen in der Schule", W / 2, 1590, 44, GREEN, WHITE, a * eo((t - 5.0) / 0.35))
 
-def s_daily(c, t):  # 13.8 – 17.4  "Nur fünfzehn Minuten am Tag – online und spielerisch."
-    a = win(t, 0, 3.6, 0.35, 0.35)
-    n = int(15 * eo(t / 1.0))
-    put(c, solid_text("Nur", 70, CREAM, "Bold"), W / 2, 420, a)
-    put(c, gold_text(f"{n}", 420), W / 2, 700, a, glow=0, scale=0.9 + 0.1 * bk(t / 0.6))
-    put(c, solid_text("Minuten am Tag", 92, WHITE), W / 2, 960, a * eo((t - 0.3) / 0.4))
-    put(c, ABAC_R, W / 2, 1220, a * eo((t - 0.6) / 0.5), dy=50 * (1 - eo((t - 0.6) / 0.5)))
-    tags = [("online", 1.6), ("spielerisch", 1.9), ("57 Lektionen", 2.2)]
-    for k, (tg, st) in enumerate(tags):
-        p = eo((t - st) / 0.35)
-        pill(c, tg, [205, 505, 835][k], 1480, 36, WHITE if k < 2 else GOLD, INK, a * p)
+def s_trust(c, t):  # 14.4 – 18.2  "Fünfzehn Jahre Erfahrung. Tausende erfolgreiche Kinder."
+    a = win(t, 0, 3.8, 0.3, 0.3)
+    n = int(15 * eo(t / 0.9))
+    put(c, gold_text(f"{n}", 400), W / 2, 560, a, scale=0.9 + 0.1 * bk(t / 0.5))
+    put(c, solid_text("Jahre Erfahrung", 96, WHITE), W / 2, 820, a * eo((t - 0.3) / 0.35))
+    ov = Image.new("RGBA", c.size); d = ImageDraw.Draw(ov)
+    d.line((W / 2 - 200, 960, W / 2 + 200, 960), fill=GOLD + (int(200 * a),), width=4); c.alpha_composite(ov)
+    pk = eo((t - 1.0) / 0.4)
+    if pk > 0:
+        put(c, gold_text("Tausende", 150), W / 2, 1120, a * pk, scale=0.8 + 0.2 * bk((t - 1.0) / 0.45))
+        put(c, solid_text("erfolgreiche Kinder", 84, WHITE), W / 2, 1290, a * eo((t - 1.3) / 0.35))
+        for k in range(5):  # stars
+            ps = eo((t - 1.6 - k * 0.1) / 0.3)
+            if ps > 0: put(c, gold_text("★", 90), W / 2 + (k - 2) * 120, 1460, a * ps, scale=0.5 + 0.5 * bk((t - 1.6 - k * 0.1) / 0.35))
 
-def s_webinar(c, t):  # 17.4 – 24.4  infoabend + date + whatsapp
-    a = win(t, 0, 7.0, 0.35, 0.35)
-    p = bk(t / 0.5)
-    pill(c, "KOSTENLOS", W / 2, 260, 40, ROSE, WHITE, a * cl(t / 0.2))
-    put(c, solid_text("Online", 110, WHITE), W / 2, 400, a * eo(t / 0.4), scale=0.85 + 0.15 * p)
-    put(c, gold_text("Infoabend", 150), W / 2, 540, a * eo((t - 0.15) / 0.4), scale=0.85 + 0.15 * p)
-    light_sweep(c, t - 0.5, 440, 640, 0.9)
-    put(c, solid_text("für Eltern", 48, CREAM, "SemiBold"), W / 2, 680, a * eo((t - 0.6) / 0.4))
-    # date card (VO: Sonntag, 22. November, 18 Uhr – starts at ~1.4s into scene)
-    pd = eo((t - 1.3) / 0.5)
+def s_webinar(c, t):  # 18.2 – 24.2  "Jetzt ist dein Kind an der Reihe! Kostenloser Online-Infoabend am Sonntag, 22. November."
+    a = win(t, 0, 6.0, 0.3, 0.3)
+    if t < 1.7:
+        aa = 1 - eio((t - 1.4) / 0.3)
+        word_reveal(c, ["Jetzt", "ist", "dein", "Kind"], W / 2, 640, t, 0.0, 0.1, 100, [WHITE] * 4)
+        put(c, gold_text("an der Reihe!", 150), W / 2, 900, aa * eo((t - 0.5) / 0.3), scale=0.75 + 0.25 * bk((t - 0.5) / 0.45))
+        if t < 1.4: return
+    lt = t - 1.4; p = bk(lt / 0.5)
+    pill(c, "KOSTENLOS", W / 2, 250, 44, ROSE, WHITE, a * cl(lt / 0.2))
+    put(c, solid_text("Online-", 110, WHITE), W / 2, 390, a * eo(lt / 0.35), scale=0.85 + 0.15 * p)
+    put(c, gold_text("Infoabend", 150), W / 2, 530, a * eo((lt - 0.15) / 0.35), scale=0.85 + 0.15 * p)
+    put(c, solid_text("für Eltern", 48, CREAM, "SemiBold"), W / 2, 665, a * eo((lt - 0.5) / 0.35))
+    light_sweep(c, lt - 0.4, 430, 630, 0.8)
+    pd = eo((lt - 1.0) / 0.45)
     if pd > 0:
-        y0 = 820 + 80 * (1 - pd)
-        glass(c, (110, y0, W - 110, y0 + 520), 56, int(55 * pd * a), (255, 210, 100, int(140 * pd * a)))
+        y0 = 800 + 80 * (1 - pd)
+        glass(c, (110, y0, W - 110, y0 + 560), 56, int(55 * pd * a), (255, 210, 100, int(140 * pd * a)))
         ov = Image.new("RGBA", c.size); d = ImageDraw.Draw(ov)
         d.rounded_rectangle((110, y0, W - 110, y0 + 110), 56, fill=ROSE + (int(230 * pd * a),))
-        d.rectangle((110, y0 + 60, W - 110, y0 + 110), fill=ROSE + (int(230 * pd * a),))
-        c.alpha_composite(ov)
+        d.rectangle((110, y0 + 60, W - 110, y0 + 110), fill=ROSE + (int(230 * pd * a),)); c.alpha_composite(ov)
         put(c, solid_text("SONNTAG", 52, WHITE, "ExtraBold"), W / 2, y0 + 55, pd * a)
-        put(c, gold_text("22", 230), W / 2, y0 + 250, pd * a, scale=0.9 + 0.1 * bk((t - 1.6) / 0.5))
-        put(c, solid_text("NOVEMBER 2026", 58, WHITE, "ExtraBold"), W / 2, y0 + 400, eo((t - 2.0) / 0.4) * a)
-        put(c, solid_text("18:00 Uhr  ·  Online", 46, CREAM, "SemiBold"), W / 2, y0 + 470, eo((t - 2.6) / 0.4) * a)
-    # WhatsApp CTA (VO ~5.1s into scene)
-    pw = eo((t - 4.9) / 0.45)
+        put(c, gold_text("22", 240), W / 2, y0 + 260, pd * a, scale=0.9 + 0.1 * bk((lt - 1.2) / 0.5))
+        put(c, solid_text("NOVEMBER 2026", 60, WHITE, "ExtraBold"), W / 2, y0 + 420, eo((lt - 1.6) / 0.35) * a)
+        put(c, solid_text("18:00 Uhr  ·  Online", 48, CREAM, "SemiBold"), W / 2, y0 + 500, eo((lt - 2.0) / 0.35) * a)
+    logo(c, W / 2, 1600, 1.0, a * eo((lt - 2.4) / 0.4), 460)
+
+def s_cta(c, t):  # 24.2 – 26.8  "Sichere dir jetzt deinen Platz – per WhatsApp!"
+    a = win(t, 0, 2.6, 0.3, 0.25)
+    word_reveal(c, ["Sichere", "dir", "jetzt"], W / 2, 330, t, 0.0, 0.1, 96, [WHITE] * 3)
+    put(c, gold_text("deinen kostenlosen", 84), W / 2, 520, a * eo((t - 0.35) / 0.3))
+    put(c, gold_text("Platz!", 170), W / 2, 670, a * eo((t - 0.5) / 0.3), scale=0.75 + 0.25 * bk((t - 0.5) / 0.45))
+    pw = eo((t - 0.9) / 0.35)
     if pw > 0:
-        pulse = (t * 1.6) % 1
-        ov = Image.new("RGBA", c.size); d = ImageDraw.Draw(ov); y = 1470
-        e = 26 * pulse
-        d.rounded_rectangle((80 - e, y - e, W - 80 + e, y + 220 + e), 110 + e, outline=GREEN + (int(220 * (1 - pulse) * a),), width=6)
-        d.rounded_rectangle((80, y, W - 80, y + 220), 110, fill=GREEN + (int(255 * pw * a),))
-        d.ellipse((115, y + 35, 265, y + 185), fill=WHITE + (int(255 * pw * a),))
-        d.ellipse((150, y + 70, 230, y + 150), outline=GREEN + (int(255 * pw * a),), width=10)
+        pulse = (t * 1.8) % 1; y = 900; e = 30 * pulse
+        ov = Image.new("RGBA", c.size); d = ImageDraw.Draw(ov)
+        d.rounded_rectangle((70 - e, y - e, W - 70 + e, y + 240 + e), 120 + e, outline=GREEN + (int(230 * (1 - pulse) * a),), width=7)
+        d.rounded_rectangle((70, y, W - 70, y + 240), 120, fill=GREEN + (int(255 * pw * a),))
+        d.ellipse((105, y + 40, 265, y + 200), fill=WHITE + (int(255 * pw * a),))
+        d.ellipse((143, y + 78, 227, y + 162), outline=GREEN + (int(255 * pw * a),), width=11)
         c.alpha_composite(ov)
-        put(c, solid_text("Jetzt per WhatsApp anmelden", 40, WHITE, "Bold"), 300, y + 40, pw * a, center=False)
-        put(c, solid_text("0676 463 44 44", 80, WHITE), 300, y + 98, pw * a, center=False)
+        put(c, solid_text("Schreib uns per WhatsApp", 42, WHITE, "Bold"), 295, y + 45, pw * a, center=False)
+        put(c, solid_text("0676 463 44 44", 84, WHITE), 295, y + 105, pw * a, center=False)
+    po = eo((t - 1.4) / 0.35)
+    put(c, solid_text("oder direkt anmelden auf", 44, CREAM, "SemiBold"), W / 2, 1300, a * po)
+    pill(c, "brainfitkids.mentalmath.at", W / 2, 1400, 52, GOLD, INK, a * po)
 
-def s_outro(c, t):  # 24.4 – 29
-    p = eo(t / 0.7)
-    ov = Image.new("RGBA", c.size); d = ImageDraw.Draw(ov)
-    r = 260 + 30 * math.sin(t * 3)
-    d.ellipse((W / 2 - r, 720 - r, W / 2 + r, 720 + r), fill=GOLD + (40,))
-    c.alpha_composite(ov.filter(ImageFilter.GaussianBlur(60)))
-    logo(c, W / 2, 760, 0.85 + 0.15 * bk(t / 0.6), p)
-    light_sweep(c, t - 0.5, 640, 900)
-    put(c, solid_text("Fördere das volle Potenzial", 54, CREAM, "SemiBold"), W / 2, 1000, eo((t - 0.6) / 0.4))
-    put(c, solid_text("deines Kindes.", 54, CREAM, "SemiBold"), W / 2, 1075, eo((t - 0.75) / 0.4))
-    pill(c, "Gratis Infoabend · 22.11. · 18:00", W / 2, 1250, 44, GOLD, INK, eo((t - 1.0) / 0.4))
-    pill(c, "WhatsApp 0676 463 44 44", W / 2, 1380, 44, GREEN, WHITE, eo((t - 1.2) / 0.4))
-    put(c, solid_text("brainfitkids.mentalmath.at", 40, WHITE, "Bold"), W / 2, 1530, eo((t - 1.5) / 0.4))
-    put(c, solid_text("@MentalMath.Kids", 40, GOLD, "Bold"), W / 2, 1600, eo((t - 1.7) / 0.4))
+def s_outro(c, t):  # 26.8 – 29
+    ov = Image.new("RGBA", c.size); d = ImageDraw.Draw(ov); r = 330 + 30 * math.sin(t * 3)
+    d.ellipse((W / 2 - r, 760 - r, W / 2 + r, 760 + r), fill=GOLD + (45,)); c.alpha_composite(ov.filter(ImageFilter.GaussianBlur(70)))
+    logo(c, W / 2, 760, 0.8 + 0.2 * bk(t / 0.55), eo(t / 0.3), 900)
+    light_sweep(c, t - 0.4, 560, 980, 0.7)
+    put(c, solid_text("Wir freuen uns auf dich! 👋".replace(" 👋", ""), 62, WHITE), W / 2, 1150, eo((t - 0.4) / 0.35))
+    pill(c, "Gratis Infoabend · So 22.11. · 18:00", W / 2, 1290, 42, GOLD, INK, eo((t - 0.6) / 0.35))
+    put(c, solid_text("@MentalMath.Kids", 44, GOLD, "Bold"), W / 2, 1420, eo((t - 0.8) / 0.35))
 
-SCENES = [(0.0, 1.4, s_intro, 0.0), (1.4, 6.2, s_hook, 0.0), (6.2, 13.8, s_benefits, 0.15),
-          (13.8, 17.4, s_daily, 0.0), (17.4, 24.4, s_webinar, 0.35), (24.4, 29.0, s_outro, 0.0)]
+SCENES = [(0.0, 1.0, s_intro, 0.0), (1.0, 4.6, s_hook, 0.0), (4.6, 7.3, s_potential, 0.1), (7.3, 14.4, s_benefits, 0.15),
+          (14.4, 18.2, s_trust, 0.0), (18.2, 24.2, s_webinar, 0.35), (24.2, 26.8, s_cta, 0.0), (26.8, 29.0, s_outro, 0.0)]
 
 def frame(n):
     tt = n / FPS
@@ -376,15 +393,18 @@ def sfx(n):
     def tick():
         L = int(0.05 * SR); s = np.arange(L) / SR
         return 0.12 * np.sin(2 * np.pi * 2400 * s) * np.exp(-s * 120)
-    add(0.0, riser(1.0)); add(0.95, impact())
-    for c in (1.4, 6.2, 13.8, 17.4, 24.4): add(c - 0.3, whoosh())
-    add(4.0, chime(1760)); add(4.15, chime(2637))                  # equation solved
-    for st in (6.2 + 1.6, 6.2 + 3.0, 6.2 + 4.6): add(st, chime(1318))  # benefit cards
-    for k in range(15): add(13.8 + k * 1.0 / 15, tick())            # counter
-    add(16.2, riser(1.2)); add(17.4, impact())                       # webinar drop
-    add(17.4 + 1.6, chime(1568))
-    add(17.4 + 4.9, chime(2093))
-    add(24.4, impact() * 0.7); add(24.6, chime(1760))
+    add(0.0, riser(0.8)); add(0.7, impact())
+    for c in (1.0, 4.6, 7.3, 14.4, 18.2, 24.2, 26.8): add(c - 0.3, whoosh())
+    add(1.8, chime(1760)); add(2.95, chime(2093))                    # MATHE! / logo
+    add(6.2, chime(1568))                                            # Potenzial
+    for st in (7.7, 8.6, 9.5): add(st, chime(1318))                  # benefit cards
+    add(11.3, chime(1760))                                           # Selbstvertrauen
+    for k in range(15): add(14.4 + k * 0.9 / 15, tick())             # 15 counter
+    for k in range(5): add(16.0 + k * 0.1, chime(2093 + k * 200) * 0.5)  # stars
+    add(17.0, riser(1.2)); add(18.2, impact()); add(18.7, chime(2093))
+    add(20.6, chime(1568)); add(21.0, chime(1760))                   # date card
+    add(25.1, chime(2349))                                           # whatsapp
+    add(26.8, impact() * 0.7); add(27.0, chime(1760))
     return out
 
 def build_audio():
@@ -408,7 +428,7 @@ def build_audio():
 if __name__ == "__main__":
     build_audio()
     mp4 = os.path.join(OUT, "BrainFitKids_Reel_Premium_9x16.mp4")
-    previews = [int(x * FPS) for x in (0.9, 4.6, 12.5, 16.5, 21.5, 23.5, 27.0)]
+    previews = [int(x * FPS) for x in (0.8, 3.8, 6.8, 13.0, 17.5, 18.9, 23.0, 25.8, 28.0)]
     if "--audio-only" in sys.argv:
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, "-i", os.path.join(OUT, "mix.wav"), "-map", "0:v",
                         "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "256k", "-t", str(DUR), "-movflags", "+faststart",
