@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Mental Aritmetik</title>
+<style>
+  :root{--bg:#0a0f24;--y:#FFD23F;--c:#4DE8D4;--p:#FF5C8A;--w:#F4F6FF;--dim:#8E97C4;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#000;width:1920px;height:1080px;overflow:hidden}
+  #stage{position:relative;width:1920px;height:1080px;overflow:hidden;
+    background:radial-gradient(1200px 800px at 50% 40%,#1b2560 0%,#0d1335 55%,#070a1c 100%);
+    font-family:'Inter Display','Inter',sans-serif;color:var(--w);font-weight:800;
+    font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+  section{position:absolute;inset:0;display:none}
+  .abs{position:absolute;will-change:transform,opacity}
+  .row{position:absolute;left:0;width:1920px;text-align:center;white-space:nowrap}
+  .y{color:var(--y)} .c{color:var(--c)} .p{color:var(--p)} .dim{color:var(--dim)}
+  .chip{position:absolute;left:0;width:1920px;text-align:center;top:70px}
+  .chip span{display:inline-block;padding:16px 40px;border-radius:999px;background:rgba(255,210,63,.14);
+    border:3px solid var(--y);color:var(--y);font-size:44px;letter-spacing:.06em;font-weight:800}
+  .chip.red span{background:rgba(255,92,138,.16);border-color:var(--p);color:var(--p)}
+  .sym{position:absolute;color:#fff;font-weight:700}
+  #cap{position:absolute;left:0;width:1920px;bottom:44px;text-align:center}
+  #cap span{display:inline-block;padding:12px 34px;border-radius:18px;background:rgba(3,6,20,.72);
+    font-size:42px;font-weight:600;letter-spacing:0;color:#fff}
+  #prog{position:absolute;left:0;bottom:0;height:8px;background:var(--y)}
+  /* calculator */
+  .calc{width:230px;height:310px;border-radius:28px;background:#232b55;border:4px solid #46508f;padding:22px}
+  .calc .scr{height:70px;border-radius:12px;background:#0c1130;margin-bottom:18px;color:var(--c);
+    font-size:40px;text-align:right;padding:10px 14px;font-weight:700}
+  .calc .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .calc .keys i{display:block;height:36px;border-radius:9px;background:#3a4484}
+  .calc .keys i.o{background:var(--y)}
+  .ring text{font-family:'Inter Display','Inter',sans-serif;font-weight:800;fill:#fff}
+  .digit{position:absolute;width:300px;text-align:center;font-size:320px;line-height:1}
+  .box{position:absolute;border:8px dashed var(--c);border-radius:36px}
+  .conf{position:absolute;width:22px;height:22px;border-radius:5px}
+  /* abacus */
+  #abacus{position:absolute;left:510px;top:170px;width:900px;height:470px;border-radius:36px;
+    background:#151c44;border:10px solid #c98a3c;box-shadow:0 0 90px rgba(77,232,212,.28)}
+  #abacus .beam{position:absolute;left:0;right:0;top:130px;height:14px;background:#c98a3c}
+  #abacus .rod{position:absolute;top:0;bottom:0;width:8px;background:#5a648f;border-radius:4px}
+  #abacus .bead{position:absolute;width:112px;height:50px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#ffe9a6,#f0a92c 60%,#b9741a)}
+  .card{position:absolute;top:400px;width:480px;height:400px;border-radius:40px;background:rgba(255,255,255,.06);
+    border:3px solid rgba(255,255,255,.16);text-align:center;padding-top:50px}
+  .card .lbl{font-size:50px;margin-top:26px;line-height:1.15}
+  .btn{display:inline-block;padding:26px 70px;border-radius:24px;background:#ff2d3d;color:#fff;font-size:76px;letter-spacing:.02em}
+  .pill{display:inline-block;padding:24px 50px;border-radius:28px;background:rgba(77,232,212,.12);border:3px solid var(--c);font-size:58px;font-weight:700}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="syms"></div>
+
+  <!-- A: hook -->
+  <section id="A">
+    <div class="chip abs" id="A_badge"><span>5 SANİYENİZ VAR</span></div>
+    <div class="row abs" id="A_q" style="top:330px;font-size:260px;line-height:1">43 × 11 = <span class="y">?</span></div>
+    <div class="abs" id="A_calc" style="left:1400px;top:600px">
+      <div class="calc"><div class="scr">43×11</div><div class="keys">
+        <i></i><i></i><i></i><i class="o"></i><i></i><i></i><i></i><i class="o"></i><i></i><i></i><i></i><i class="o"></i><i></i><i></i><i></i><i class="o"></i></div></div>
+      <div style="font-size:38px;font-weight:700;color:var(--c);margin-top:18px;text-align:center;width:230px;line-height:1.15">Hesap makinesi<br>serbest</div>
+    </div>
+    <div class="abs ring" id="A_ring" style="left:770px;top:500px">
+      <svg width="380" height="380" viewBox="0 0 380 380">
+        <circle cx="190" cy="190" r="165" fill="rgba(10,15,36,.6)" stroke="rgba(255,255,255,.14)" stroke-width="22"/>
+        <circle id="A_arc" cx="190" cy="190" r="165" fill="none" stroke="#FFD23F" stroke-width="22" stroke-linecap="round" transform="rotate(-90 190 190)"/>
+        <text id="A_num" x="190" y="252" text-anchor="middle" font-size="190">5</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- B: answer -->
+  <section id="B">
+    <div class="chip red abs" id="B_flash"><span>SÜRE DOLDU!</span></div>
+    <div class="row abs" id="B_eq" style="top:230px;font-size:240px;line-height:1">43 × 11 = <span class="y abs" id="B_ans" style="position:relative;display:inline-block">473</span></div>
+    <div class="abs" id="B_row" style="left:0;top:590px;width:1920px">
+      <div class="abs" style="left:560px;top:0;transform:scale(.72);transform-origin:top left">
+        <div class="calc"><div class="scr">43×11</div><div class="keys">
+          <i></i><i></i><i></i><i class="o"></i><i></i><i></i><i></i><i class="o"></i><i></i><i></i><i></i><i class="o"></i><i></i><i></i><i></i><i class="o"></i></div></div>
+      </div>
+      <svg class="abs" id="B_x" style="left:530px;top:-10px" width="230" height="250" viewBox="0 0 230 250">
+        <line id="B_x1" x1="20" y1="20" x2="210" y2="230" stroke="#FF5C8A" stroke-width="22" stroke-linecap="round"/>
+        <line id="B_x2" x1="210" y1="20" x2="20" y2="230" stroke="#FF5C8A" stroke-width="22" stroke-linecap="round"/>
+      </svg>
+      <div class="abs" style="left:800px;top:60px;font-size:74px;line-height:1.1">Hesap makinesine<br><span class="p">gerek yok.</span></div>
+    </div>
+    <div class="row abs" id="B_stamp" style="top:640px;font-size:150px"><span style="display:inline-block;padding:18px 60px;border-radius:30px;background:var(--y);color:#0a0f24">3 saniye yeter.</span></div>
+  </section>
+
+  <!-- C: trick 1 -->
+  <section id="C">
+    <div class="chip"><span>1. NUMARA · 11 İLE ÇARPMA</span></div>
+    <div class="row dim" style="top:185px;font-size:80px">43 × 11</div>
+    <div class="row abs c" id="C_hint" style="top:290px;font-size:84px">4 + 3</div>
+    <div class="box abs" id="C_box" style="left:820px;top:410px;width:280px;height:350px"></div>
+    <div class="digit abs" id="C_d4" style="left:810px;top:425px">4</div>
+    <div class="digit abs" id="C_d3" style="left:810px;top:425px">3</div>
+    <div class="digit abs y" id="C_d7" style="left:810px;top:425px">7</div>
+    <div class="row abs" id="C_res" style="top:815px;font-size:92px">43 × 11 = <span class="y">473</span></div>
+  </section>
+
+  <!-- D: your turn -->
+  <section id="D">
+    <div class="chip"><span>SIRA SİZDE</span></div>
+    <div class="row abs" id="D_q" style="top:250px;font-size:240px;line-height:1">62 × 11 = <span id="D_a" class="y" style="display:inline-block;min-width:150px">?</span></div>
+    <div class="abs ring" id="D_ring" style="left:820px;top:560px">
+      <svg width="280" height="280" viewBox="0 0 280 280">
+        <circle cx="140" cy="140" r="118" fill="rgba(10,15,36,.6)" stroke="rgba(255,255,255,.14)" stroke-width="18"/>
+        <circle id="D_arc" cx="140" cy="140" r="118" fill="none" stroke="#4DE8D4" stroke-width="18" stroke-linecap="round" transform="rotate(-90 140 140)"/>
+        <text id="D_num" x="140" y="188" text-anchor="middle" font-size="140">3</text>
+      </svg>
+    </div>
+    <div class="row abs" id="D_hint" style="top:620px;font-size:120px"><span class="dim">6</span> <span class="c" style="padding:0 40px">6 + 2 = 8</span> <span class="dim">2</span></div>
+    <div id="D_conf"></div>
+  </section>
+
+  <!-- E: mental abacus -->
+  <section id="E">
+    <div class="row abs" id="E_q" style="top:330px;font-size:112px">Çocuklar bunu nasıl yapıyor?</div>
+    <div class="row abs y" id="E_stamp" style="top:520px;font-size:170px">Ezber değil.</div>
+    <div class="chip abs" id="E_chip" style="top:56px"><span>ZİHİNSEL ABAKÜS</span></div>
+    <div class="abs" id="E_ab" style="left:0;top:0"><div id="abacus"><div class="beam"></div></div></div>
+    <div class="abs y" id="E_n0" style="left:870px;top:640px;width:200px;text-align:center;font-size:120px">4</div>
+    <div class="abs y" id="E_n1" style="left:1020px;top:640px;width:200px;text-align:center;font-size:120px">7</div>
+    <div class="abs y" id="E_n2" style="left:1170px;top:640px;width:200px;text-align:center;font-size:120px">3</div>
+    <div class="row" style="top:830px;font-size:84px"><span class="abs" id="E_t1" style="position:relative;display:inline-block">Sayıları duymuyorlar,&nbsp;</span><span class="abs y" id="E_t2" style="position:relative;display:inline-block">görüyorlar.</span></div>
+  </section>
+
+  <!-- F: trick 2 -->
+  <section id="F">
+    <div class="chip"><span>2. NUMARA · SONU 5 İLE BİTENLERİN KARESİ</span></div>
+    <div class="row abs" id="F_intro" style="top:380px;font-size:120px;line-height:1.2"><span class="y">2. numara</span><br>Sonu 5 ile biten sayıların karesi</div>
+    <div class="row abs" id="F_n" style="top:185px;font-size:270px;line-height:1"><span id="F_6">6</span><span id="F_5">5</span><sup style="font-size:150px;vertical-align:top;line-height:1.1">2</sup></div>
+    <div class="abs" id="F_l1" style="left:180px;top:520px;width:600px;text-align:center;font-size:104px"><span class="c">6</span> × <span class="c">7</span> =</div>
+    <div class="abs" id="F_l2" style="left:1140px;top:520px;width:600px;text-align:center;font-size:84px;color:var(--p)">sonuna yaz</div>
+    <div class="abs y" id="F_42" style="left:330px;top:650px;width:300px;text-align:center;font-size:230px;line-height:1">42</div>
+    <div class="abs y" id="F_25" style="left:1290px;top:650px;width:300px;text-align:center;font-size:230px;line-height:1">25</div>
+    <div class="row abs dim" id="F_res" style="top:540px;font-size:84px">65² =</div>
+    <div id="F_conf"></div>
+  </section>
+
+  <!-- G: trick 3 -->
+  <section id="G">
+    <div class="chip"><span>3. NUMARA · 100'E YAKIN SAYILAR</span></div>
+    <div class="row abs" id="G_intro" style="top:380px;font-size:120px;line-height:1.2"><span class="y">3. numara</span><br>100'e yakın sayılar</div>
+    <div class="row abs" id="G_eq" style="top:190px;font-size:200px;line-height:1"><span id="G_98">98</span> <span class="dim">×</span> <span id="G_97">97</span></div>
+    <div class="abs c" id="G_m2" style="left:545px;top:400px;width:300px;text-align:center;font-size:100px">−2</div>
+    <div class="abs c" id="G_m3" style="left:1075px;top:400px;width:300px;text-align:center;font-size:100px">−3</div>
+    <div class="row abs dim" id="G_lbl" style="top:435px;font-size:40px;font-weight:600;letter-spacing:0">100'e uzaklık</div>
+    <div class="abs" id="G_l1" style="left:160px;top:565px;width:800px;text-align:center;font-size:96px">98 − 3 <span class="abs y" id="G_95" style="position:relative;display:inline-block">= 95</span></div>
+    <div class="abs" id="G_l2" style="left:960px;top:565px;width:800px;text-align:center;font-size:96px">2 × 3 <span class="abs y" id="G_06" style="position:relative;display:inline-block">= 06</span></div>
+    <div class="row abs y" id="G_res" style="top:705px;font-size:240px;line-height:1">9506</div>
+    <div id="G_conf"></div>
+  </section>
+
+  <!-- H: benefit -->
+  <section id="H">
+    <div class="row abs" id="H_t" style="top:170px;font-size:120px">Asıl kazanç <span class="y">hız değil.</span></div>
+    <div class="card abs" id="H_c1" style="left:160px">
+      <svg width="170" height="170" viewBox="0 0 170 170"><circle cx="85" cy="85" r="76" fill="none" stroke="#4DE8D4" stroke-width="12"/><circle cx="85" cy="85" r="46" fill="none" stroke="#4DE8D4" stroke-width="12"/><circle cx="85" cy="85" r="16" fill="#FFD23F"/></svg>
+      <div class="lbl">Odaklanan</div></div>
+    <div class="card abs" id="H_c2" style="left:720px">
+      <svg width="170" height="170" viewBox="0 0 170 170"><path d="M85 12 L150 36 V84 C150 122 122 148 85 160 C48 148 20 122 20 84 V36 Z" fill="none" stroke="#4DE8D4" stroke-width="12" stroke-linejoin="round"/><path d="M56 86 L78 108 L118 62" fill="none" stroke="#FFD23F" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="lbl">Sayılardan<br>korkmayan</div></div>
+    <div class="card abs" id="H_c3" style="left:1280px">
+      <svg width="170" height="170" viewBox="0 0 170 170"><path d="M85 10 L107 60 L162 66 L121 103 L133 158 L85 130 L37 158 L49 103 L8 66 L63 60 Z" fill="#FFD23F"/></svg>
+      <div class="lbl">Kendine<br>güvenen</div></div>
+  </section>
+
+  <!-- I: final challenge -->
+  <section id="I">
+    <div class="chip"><span>SON SORU</span></div>
+    <div class="row abs" id="I_q" style="top:190px;font-size:300px;line-height:1">75<sup style="font-size:165px;vertical-align:top;line-height:1.1">2</sup> = <span class="y">?</span></div>
+    <div class="row abs" id="I_c" style="top:580px"><span class="pill">10 saniyede bulan cevabı <span class="c">yoruma yazsın</span></span></div>
+    <div class="row abs" id="I_s" style="top:760px"><span class="btn">ABONE OL</span></div>
+  </section>
+
+  <div id="cap"><span id="capt"></span></div>
+  <div id="prog"></div>
+  <div id="fade" style="position:absolute;inset:0;background:#000;opacity:0"></div>
+</div>
+
+<script>
+const T=102, FPS=30;
+const $=id=>document.getElementById(id);
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const p=(t,a,d)=>clamp((t-a)/d);
+const eo=x=>1-Math.pow(1-x,3);
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const back=x=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2);};
+const lerp=(a,b,k)=>a+(b-a)*k;
+function rnd(seed){let s=seed;return()=>{s=(s*16807)%2147483647;return (s-1)/2147483646;};}
+function tr(el,{x=0,y=0,s=1,r=0,o=1}={}){if(typeof el==='string')el=$(el);el.style.opacity=o;el.style.transform=`translate(${x}px,${y}px) scale(${s}) rotate(${r}deg)`;}
+function pop(id,t,at,out){const k=p(t,at,.5);let o=p(t,at,.12);if(out!=null)o*=1-p(t,out,.25);tr(id,{s:k<=0?.5:.5+.5*back(k),o});}
+function rise(id,t,at,out,dy=50){const k=eo(p(t,at,.5));let o=k;if(out!=null)o*=1-p(t,out,.25);tr(id,{y:dy*(1-k),o});}
+
+/* background symbols */
+(function(){const r=rnd(7),host=$('syms'),chars='+×÷=−7 3 9 5 2 8 %√'.replace(/ /g,'').split('');
+  window.SY=[];for(let i=0;i<26;i++){const e=document.createElement('div');e.className='sym';e.textContent=chars[Math.floor(r()*chars.length)];
+    const o={e,x:r()*1920,y:r()*1300,sp:12+r()*26,sz:50+r()*90,op:.035+r()*.05,rot:r()*40-20,ph:r()*6};
+    e.style.fontSize=o.sz+'px';host.appendChild(e);SY.push(o);}})();
+function bg(t){for(const o of SY){let y=((o.y-o.sp*t)%1300+1300)%1300-150;const x=o.x+Math.sin(t*.3+o.ph)*30;
+  o.e.style.opacity=o.op;o.e.style.transform=`translate(${x}px,${y}px) rotate(${o.rot+t*3}deg)`;}}
+
+/* confetti */
+const CONF={};
+function mkConf(host,seed){const r=rnd(seed),cols=['#FFD23F','#4DE8D4','#FF5C8A','#F4F6FF','#7C8CFF'],a=[];
+  for(let i=0;i<70;i++){const e=document.createElement('div');e.className='conf';e.style.background=cols[i%5];$(host).appendChild(e);
+    const ang=r()*Math.PI*2,sp=500+r()*1100;a.push({e,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp-500,rv:r()*900-450,sc:.6+r()*1});}
+  CONF[host]=a;}
+mkConf('D_conf',11);mkConf('F_conf',23);mkConf('G_conf',37);
+function conf(host,t,at,cx,cy){const dt=t-at;for(const c of CONF[host]){if(dt<0||dt>2.4){c.e.style.opacity=0;continue;}
+  const d=1-Math.exp(-dt*2.2);const x=cx+c.vx*d/2.2,y=cy+c.vy*d/2.2+700*dt*dt;
+  c.e.style.opacity=1-p(dt,1.4,1);c.e.style.transform=`translate(${x}px,${y}px) rotate(${c.rv*dt}deg) scale(${c.sc})`;}}
+
+/* countdown ring */
+function ring(arcId,numId,t,start,n,R){const C=2*Math.PI*R,el=$(arcId),dt=clamp(t-start,0,n-1e-4);
+  const k=Math.floor(dt),f=dt-k;el.setAttribute('stroke-dasharray',C);el.setAttribute('stroke-dashoffset',C*(dt/n));
+  $(numId).textContent=n-k;const s=1+.18*(1-eo(clamp(f/.3)));$(numId).setAttribute('transform',`translate(${R+25} ${R+25}) scale(${s}) translate(${-(R+25)} ${-(R+25)})`);}
+
+/* abacus build */
+const AB={rods:[]};
+(function(){const host=$('abacus');for(let i=0;i<5;i++){const x=150+i*150;const rod=document.createElement('div');rod.className='rod';rod.style.left=(x-4)+'px';host.insertBefore(rod,host.firstChild);
+  const beads=[];for(let j=0;j<5;j++){const b=document.createElement('div');b.className='bead';b.style.left=(x-56)+'px';host.appendChild(b);beads.push(b);}AB.rods.push(beads);}})();
+function abacus(vals){ // vals: fractional digit per rod (array of [digit, k])
+  for(let i=0;i<5;i++){const [d,k]=vals[i],b=AB.rods[i],five=d>=5?1:0,n=d%5;
+    b[0].style.top=lerp(18,72,five*k)+'px';
+    for(let j=0;j<4;j++){const rest=450-10-(4-j)*54+2,act=150+j*54;b[j+1].style.top=lerp(rest,act,(j<n?1:0)*k)+'px';}}}
+
+/* scenes */
+const SC={
+A:[0,11.0,t=>{
+  pop('A_q',t,.3); const mv=eio(p(t,5.5,.5)); const q=$('A_q');
+  q.style.transform=`translate(0,${lerp(0,-150,mv)}px) scale(${(p(t,.3,.5)<=0?.5:.5+.5*back(p(t,.3,.5)))*lerp(1,.8,mv)})`;
+  pop('A_badge',t,2.6);
+  const k=eo(p(t,3.9,.5));tr('A_calc',{x:200*(1-k),o:k});
+  pop('A_ring',t,5.6);ring('A_arc','A_num',t,5.8,5,165);
+}],
+B:[11.0,18.6,t=>{
+  pop('B_flash',t,11.0);
+  tr('B_eq',{o:p(t,11.05,.2)});
+  const k=p(t,12.1,.5);tr('B_ans',{s:k<=0?.3:.3+.7*back(k),o:p(t,12.1,.1)});
+  rise('B_row',t,13.95,16.9);
+  const L=300;for(const [id,at] of [['B_x1',14.6],['B_x2',14.85]]){const e=$(id);e.setAttribute('stroke-dasharray',L);e.setAttribute('stroke-dashoffset',L*(1-eo(p(t,at,.25))));}
+  const s=p(t,17.1,.45);tr('B_stamp',{s:s<=0?1.6:lerp(1.6,1,eo(s)),r:-4,o:p(t,17.1,.12)});
+}],
+C:[18.6,28.4,t=>{
+  const sp=eio(p(t,19.7,.7)), mg=eio(p(t,26.67,.6));
+  const off=lerp(lerp(95,330,sp),200,mg);
+  tr('C_d4',{x:-off});tr('C_d3',{x:off});
+  $('C_d4').style.color=$('C_d3').style.color=mg>.5?'#FFD23F':'#F4F6FF';
+  tr('C_box',{o:p(t,21.85,.3)*(1-mg),s:lerp(.8,1,eo(p(t,21.85,.4)))});
+  rise('C_hint',t,23.7,26.5,30);
+  const k=p(t,24.75,.5);tr('C_d7',{s:k<=0?.3:.3+.7*back(k),o:p(t,24.75,.1)});
+  rise('C_res',t,27.0);
+}],
+D:[28.4,38.4,t=>{
+  pop('D_q',t,30.15);
+  $('D_a').textContent=t>=35.8?'682':'?';
+  const a=$('D_a'),k=p(t,35.8,.5);a.style.transform=`scale(${t<35.8?1:.4+.6*back(k)})`;
+  pop('D_ring',t,32.4,35.6);ring('D_arc','D_num',t,32.6,3,118);
+  rise('D_hint',t,36.2);
+  conf('D_conf',t,35.85,1380,370);
+}],
+E:[38.4,52.2,t=>{
+  rise('E_q',t,38.6,43.8);pop('E_stamp',t,42.67,43.8);
+  pop('E_chip',t,44.2);
+  const k=eo(p(t,44.1,.6));tr('E_ab',{y:60*(1-k),o:k,s:lerp(.92,1,k)});
+  const mv=at=>eio(p(t,at,.7));
+  abacus([[0,0],[0,0],[4,mv(46.4)],[7,mv(47.2)],[3,mv(48.0)]]);
+  pop('E_n0',t,47.0);pop('E_n1',t,47.8);pop('E_n2',t,48.6);
+  rise('E_t1',t,49.2,null,30);pop('E_t2',t,50.6);
+}],
+F:[52.2,66.3,t=>{
+  rise('F_intro',t,52.5,55.9);pop('F_n',t,56.27);
+  $('F_6').style.color=t>=58.14?'#4DE8D4':'#F4F6FF';$('F_5').style.color=t>=62.39?'#FF5C8A':'#F4F6FF';
+  const mg=eio(p(t,63.96,.6));
+  rise('F_l1',t,58.6,63.8);rise('F_l2',t,62.39,63.8);
+  const k1=p(t,61.2,.5),k2=p(t,62.7,.5);
+  tr('F_42',{x:lerp(0,318,mg),s:(k1<=0?.3:.3+.7*back(k1))*lerp(1,1.12,mg),o:p(t,61.2,.1)});
+  tr('F_25',{x:lerp(0,-318,mg),s:(k2<=0?.3:.3+.7*back(k2))*lerp(1,1.12,mg),o:p(t,62.7,.1)});
+  rise('F_res',t,64.3);
+  conf('F_conf',t,64.5,960,760);
+}],
+G:[66.3,83.1,t=>{
+  rise('G_intro',t,66.7,69.2);pop('G_eq',t,69.54);
+  pop('G_m2',t,71.87);pop('G_m3',t,72.6);tr('G_lbl',{o:p(t,72.0,.4)});
+  const h1=t>=74.41&&t<77.4,h2=t>=77.4&&t<79.8;
+  $('G_98').style.color=h1?'#4DE8D4':'#F4F6FF';
+  $('G_m3').style.textShadow=(h1||h2)?'0 0 40px #4DE8D4':'none';$('G_m2').style.textShadow=h2?'0 0 40px #4DE8D4':'none';
+  rise('G_l1',t,74.41);pop('G_95',t,76.29);
+  rise('G_l2',t,77.4);pop('G_06',t,78.85);
+  const k=p(t,80.82,.55);tr('G_res',{s:k<=0?.3:.3+.7*back(k),o:p(t,80.82,.1)});
+  conf('G_conf',t,80.9,960,800);
+}],
+H:[83.1,90.1,t=>{
+  rise('H_t',t,83.4);pop('H_c1',t,85.35);pop('H_c2',t,86.5);pop('H_c3',t,88.0);
+}],
+I:[90.1,102,t=>{
+  pop('I_q',t,92.1);rise('I_c',t,94.0);
+  const k=p(t,96.76,.5);tr('I_s',{s:(k<=0?.5:.5+.5*back(k))*(1+.04*Math.sin(Math.max(0,t-97.3)*5)),o:p(t,96.76,.12)});
+}]};
+
+const CAPS=[
+[.3,2.45,'43 çarpı 11 kaç eder?'],[2.58,3.8,'Beş saniyeniz var.'],[3.89,5.6,'Hesap makinesi serbest!'],
+[11.0,12.0,'Süre doldu!'],[12.08,13.75,'Cevap 473.'],[13.95,16.9,'Bunu bulmak için hesap makinesine ihtiyacınız yok.'],[17.1,18.35,'Üç saniye yeter.'],
+[18.8,19.4,'Bakın.'],[19.62,21.7,'4 ile 3\'ü birbirinden ayırın.'],[21.85,23.45,'Ortaya toplamlarını yazın:'],[23.7,25.35,'4 artı 3, 7.'],[25.67,27.95,'İşte bu kadar: 473.'],
+[28.6,29.85,'Şimdi sıra sizde.'],[30.15,32.5,'62 çarpı 11 kaç eder?'],[35.8,37.95,'Evet! 682.'],
+[38.6,42.4,'Mental aritmetik eğitimi alan çocuklar bunu nasıl yapıyor?'],[42.67,43.9,'Ezberlemiyorlar.'],[44.07,46.3,'Zihinlerinde bir abaküs canlandırıp'],[46.4,49.0,'boncukları hayallerinde hareket ettiriyorlar.'],
+[52.4,56.0,'İkinci numara: sonu 5 ile biten sayıların karesi.'],[56.27,57.85,'65\'in karesi kaç?'],[58.14,60.0,'6\'yı bir fazlasıyla çarpın:'],[60.17,62.1,'6 çarpı 7, 42.'],[62.39,63.75,'Yanına 25 yazın.'],[63.96,65.7,'4225!'],
+[66.6,69.2,'Üçüncü numara: yüze yakın sayılar.'],[69.54,71.6,'98 çarpı 97.'],[71.87,74.1,'Yüze uzaklıkları 2 ve 3.'],[74.41,77.1,'98\'den 3\'ü çıkarın: 95.'],[77.4,79.5,'2 ile 3\'ü çarpın: 6.'],[79.78,80.65,'Yan yana yazın:'],[80.82,82.55,'9506!'],
+[90.4,91.75,'Son soru sizin için:'],[92.1,93.75,'75\'in karesi kaç?']
+];
+
+window.renderAt=function(t){
+  bg(t);
+  for(const id in SC){const [a,b,fn]=SC[id],el=$(id);
+    if(t>=a&&t<b){el.style.display='block';el.style.opacity=Math.min(p(t,a,.2),1-p(t,b-.2,.2));fn(t);}else el.style.display='none';}
+  let c=null;for(const x of CAPS)if(t>=x[0]&&t<x[1]){c=x;break;}
+  const cap=$('cap');if(c){$('capt').textContent=c[2];cap.style.opacity=Math.min(p(t,c[0],.1),1-p(t,c[1]-.1,.1));}else cap.style.opacity=0;
+  $('prog').style.width=(1920*t/T)+'px';
+  $('fade').style.opacity=Math.max(1-p(t,0,.25),p(t,T-.6,.5));
+};
+const q=new URLSearchParams(location.search);
+if(q.has('t'))renderAt(parseFloat(q.get('t')));
+else if(q.has('play')){const s=performance.now();(function loop(){const t=((performance.now()-s)/1000)%T;renderAt(t);requestAnimationFrame(loop);})();}
+else renderAt(0);
+</script>
+</body>
+</html>
